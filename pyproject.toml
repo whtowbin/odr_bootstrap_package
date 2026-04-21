@@ -1,0 +1,52 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "odr-bootstrap"
+version = "0.1.0"
+description = "Orthogonal Distance Regression with Bootstrap Resampling for SIMS Calibration"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+authors = [
+    {name = "Henry Towbin", email = "htowbin@caltech.edu"}
+]
+keywords = ["calibration", "ODR", "bootstrap", "SIMS", "uncertainty"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "matplotlib>=3.10.1",
+    "numpy>=2.2.4",
+    "pandas>=2.2.3",
+    "scipy>=1.15.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
+
+[project.urls]
+Repository = "https://github.com/whtowbin/odr-bootstrap"
+Issues = "https://github.com/whtowbin/odr-bootstrap/issues"
+Documentation = "https://github.com/whtowbin/odr-bootstrap#readme"
+
+[tool.hatch.version]
+path = "odr_bootstrap/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["odr_bootstrap"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q"
+testpaths = ["tests"]
+pythonpath = ["."]

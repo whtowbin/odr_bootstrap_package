@@ -14,12 +14,13 @@ from pathlib import Path
 # Add parent directory to path so we can import the module
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+
 from odr_bootstrap import (
     ODR_Bootstrap,
-    plot_regression,
     plot_Calibration_Estimates,
+    plot_regression,
 )
 
 
@@ -37,11 +38,11 @@ def main():
 
     # Define standard materials with known concentrations
     x_standards = np.array([0.1, 0.5, 1.0, 2.0, 5.0, 10.0])
-    
+
     # Simulated ion intensity measurements (counts)
     # True relationship: y = 125*x + 15 (slope = 125, intercept = 15)
     y_measured = 125 * x_standards + 15 + np.random.normal(0, 40, len(x_standards))
-    
+
     # Measurement uncertainties
     x_uncertainty = np.array([0.01, 0.05, 0.1, 0.2, 0.5, 1.0])
     y_uncertainty = np.array([20, 30, 50, 60, 100, 150])
@@ -141,7 +142,7 @@ def main():
     print("\n" + "=" * 70)
     print("SUMMARY")
     print("=" * 70)
-    print(f"\nFit Parameters (from full dataset):")
+    print("\nFit Parameters (from full dataset):")
     print(f"  Slope:     {best_fit_params[0]:8.2f}")
     print(f"  Intercept: {best_fit_params[1]:8.2f}")
 

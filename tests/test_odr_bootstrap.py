@@ -3,19 +3,21 @@ Unit tests for ODR bootstrapping and calibration functions.
 """
 
 import unittest
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+
 from odr_bootstrap import (
-    ODR_Linear,
-    ODR_Linear_Test,
     Bootstrap_fit,
     Eval_Conf,
-    plot_regression,
     ODR_Bootstrap,
+    ODR_Linear,
+    ODR_Linear_Test,
     gauss_agv_err,
-    plot_datapoints,
     plot_Calibration_Estimates,
+    plot_datapoints,
+    plot_regression,
 )
 
 

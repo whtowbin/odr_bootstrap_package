@@ -20,6 +20,8 @@ April 2025:
   - Updated deprecated np.trapz to np.trapezoid for scipy 1.15+ compatibility.
 """
 
+from typing import Any
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -27,7 +29,14 @@ import scipy.stats as stats
 from scipy import odr
 
 
-def ODR_Linear(x, y, x_err, y_err, intercept=False, InitialGuess=[100, 1]):
+def ODR_Linear(
+    x: np.ndarray | list[float],
+    y: np.ndarray | list[float],
+    x_err: np.ndarray | list[float],
+    y_err: np.ndarray | list[float],
+    intercept: bool = False,
+    InitialGuess: list[float] | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Fit a linear model using orthogonal distance regression (ODR).
 
@@ -55,13 +64,16 @@ def ODR_Linear(x, y, x_err, y_err, intercept=False, InitialGuess=[100, 1]):
         `Popt`, `Perr` where `Popt` is the fitted parameter array and `Perr`
         is the 1-sigma uncertainty array.
     """
-    def yint_func(p, x):
+    def yint_func(p: np.ndarray | list[float], x: np.ndarray | list[float]) -> np.ndarray:
         a, b = p
         return a * x + b
 
-    def slope_func(p, x):
+    def slope_func(p: np.ndarray | list[float], x: np.ndarray | list[float]) -> np.ndarray:
         a = p
         return a * x
+
+    if InitialGuess is None:
+        InitialGuess = [100, 1]
 
     linear_model = odr.Model(yint_func)
     beta0 = InitialGuess
@@ -80,7 +92,14 @@ def ODR_Linear(x, y, x_err, y_err, intercept=False, InitialGuess=[100, 1]):
     return Popt, Perr
 
 
-def ODR_Linear_Test(x, y, x_err, y_err, intercept=False, InitialGuess=[100, 1]):
+def ODR_Linear_Test(
+    x: np.ndarray | list[float],
+    y: np.ndarray | list[float],
+    x_err: np.ndarray | list[float],
+    y_err: np.ndarray | list[float],
+    intercept: bool = False,
+    InitialGuess: list[float] = [100, 1],
+) -> tuple[np.ndarray, np.ndarray, Any]:
     """
     Fit a linear model using ODR and return the raw ODR output.
 
@@ -133,14 +152,14 @@ def ODR_Linear_Test(x, y, x_err, y_err, intercept=False, InitialGuess=[100, 1]):
 
 
 def Bootstrap_fit(
-    x,
-    y,
-    x_err,
-    y_err,
-    resample_draws,
-    InterceptFit=True,
-    InitialGuess=[100, 1],
-):
+    x: np.ndarray | list[float],
+    y: np.ndarray | list[float],
+    x_err: np.ndarray | list[float],
+    y_err: np.ndarray | list[float],
+    resample_draws: int,
+    InterceptFit: bool = True,
+    InitialGuess: list[float] = [100, 1],
+) -> tuple[list[np.ndarray], list[pd.DataFrame]]:
     """
     Perform bootstrap resampling of ODR linear fits.
 
@@ -210,7 +229,7 @@ def Bootstrap_fit(
     return Fit_Param, subs
 
 
-def yint_func(p, x):
+def yint_func(p: np.ndarray | list[float], x: np.ndarray | list[float]) -> np.ndarray:
     """
     Evaluate a line with slope and intercept.
 
@@ -230,7 +249,7 @@ def yint_func(p, x):
     return a * x + b
 
 
-def slope_func(p, x):
+def slope_func(p: np.ndarray | list[float], x: np.ndarray | list[float]) -> np.ndarray:
     """
     Evaluate a line through the origin.
 
@@ -250,7 +269,13 @@ def slope_func(p, x):
     return a * x
 
 
-def Eval_Conf(Fit_Param, Confidence_Bound=0.95, LineMax=200, LineInt=1, **kwargs):
+def Eval_Conf(
+    Fit_Param: list[np.ndarray],
+    Confidence_Bound: float = 0.95,
+    LineMax: int = 200,
+    LineInt: int = 1,
+    **kwargs: Any,
+) -> pd.DataFrame:
     """
     Evaluate bootstrap confidence intervals for linear predictions.
 
@@ -315,17 +340,17 @@ def Eval_Conf(Fit_Param, Confidence_Bound=0.95, LineMax=200, LineInt=1, **kwargs
 
 
 def plot_regression(
-    confidence_df,
-    datapoints=None,
-    LineMax=200,
-    LineInt=1,
-    ax=None,
-    ecolor="r",
-    line_color="b",
-    sigma=2,
-    e_alpha=0.5,
-    **kwargs,
-):
+    confidence_df: pd.DataFrame,
+    datapoints: pd.DataFrame | None = None,
+    LineMax: int = 200,
+    LineInt: int = 1,
+    ax: plt.Axes | None = None,
+    ecolor: str = "r",
+    line_color: str = "b",
+    sigma: int = 2,
+    e_alpha: float = 0.5,
+    **kwargs: Any,
+) -> plt.Axes:
     """
     Plot a best-fit regression line and its bootstrap confidence band.
 
@@ -387,20 +412,20 @@ def plot_regression(
 
 
 def ODR_Bootstrap(
-    x,
-    y,
-    x_err,
-    y_err,
-    resample_draws=5000,
-    LineMax=200,
-    LineInterval=1,
-    InterceptFit=True,
-    InitialGuess=[100, 1],
-    Confidence_Bound=0.95,
-    plot=False,
-    ax=None,
-    **kwargs,
-):
+    x: np.ndarray | list[float],
+    y: np.ndarray | list[float],
+    x_err: np.ndarray | list[float],
+    y_err: np.ndarray | list[float],
+    resample_draws: int = 5000,
+    LineMax: int = 200,
+    LineInterval: int = 1,
+    InterceptFit: bool = True,
+    InitialGuess: list[float] = [100, 1],
+    Confidence_Bound: float = 0.95,
+    plot: bool = False,
+    ax: plt.Axes | None = None,
+    **kwargs: Any,
+) -> tuple[pd.DataFrame, np.ndarray, pd.DataFrame, list[np.ndarray], list[pd.DataFrame]]:
     """
     Run bootstrap resampling for ODR linear fitting and compute confidence data.
 
@@ -462,7 +487,11 @@ def ODR_Bootstrap(
     return confidence_data, param[0], points, param, subs
 
 
-def gauss_agv_err(concentrations, errors, cut_off=0.000001):
+def gauss_agv_err(
+    concentrations: np.ndarray | list[float],
+    errors: np.ndarray | list[float],
+    cut_off: float = 0.000001,
+) -> tuple[dict[str, np.ndarray], dict[str, Any]]:
     """
     Compute an aggregate Gaussian distribution from values and uncertainties.
 
@@ -541,7 +570,12 @@ def gauss_agv_err(concentrations, errors, cut_off=0.000001):
     )
 
 
-def plot_datapoints(data, bounds, ax=None, sample_name=None):
+def plot_datapoints(
+    data: dict[str, np.ndarray],
+    bounds: dict[str, Any],
+    ax: plt.Axes | None = None,
+    sample_name: str | None = None,
+) -> plt.Axes:
     """
     Plot a probability density curve and annotate summary statistics.
 
@@ -620,7 +654,11 @@ def plot_datapoints(data, bounds, ax=None, sample_name=None):
     return ax
 
 
-def plot_Calibration_Estimates(fit_params, fit_error, Title="Calibration Line Fits"):
+def plot_Calibration_Estimates(
+    fit_params: np.ndarray | list[list[float]],
+    fit_error: np.ndarray | list[list[float]],
+    Title: str = "Calibration Line Fits",
+) -> plt.Figure:
     """
     Plot calibration slope and intercept estimate distributions.
 

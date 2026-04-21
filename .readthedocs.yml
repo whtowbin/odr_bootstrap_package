@@ -1,0 +1,30 @@
+version: 2
+
+build:
+  os: ubuntu-22.04
+  tools:
+    python: "3.12"
+    uv: "latest"
+
+python:
+  version: 3.12
+  install:
+    - requirements: docs/requirements.txt
+
+sphinx:
+  configuration: docs/source/conf.py
+  fail_on_warning: false
+
+formats:
+  - pdf
+  - epub
+
+# Exclude certain files from builds
+exclude_patterns:
+  - docs/build
+
+# Index page configuration
+redirect_www: false
+
+# Versioning
+version: latest

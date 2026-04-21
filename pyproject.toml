@@ -29,15 +29,28 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+test = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
+    "ruff>=0.8.0",
+    "mypy>=1.10.0",
+    "pre-commit>=4.0.0",
+]
+docs = [
+    "sphinx>=8.0.0",
+    "sphinx-rtd-theme>=2.0.0",
+    "sphinx-autodoc-typehints>=2.0.0",
 ]
 
 [project.urls]
 Repository = "https://github.com/whtowbin/odr-bootstrap"
 Issues = "https://github.com/whtowbin/odr-bootstrap/issues"
-Documentation = "https://github.com/whtowbin/odr-bootstrap#readme"
+Documentation = "https://odr-bootstrap.readthedocs.io"
+Changelog = "https://github.com/whtowbin/odr-bootstrap/blob/main/CHANGELOG.md"
 
 [tool.hatch.version]
 path = "odr_bootstrap/__init__.py"
@@ -47,6 +60,56 @@ packages = ["odr_bootstrap"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-ra -q"
+addopts = "-ra -q --cov=odr_bootstrap --cov-report=term-missing --cov-report=html"
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.coverage.run]
+source = ["odr_bootstrap"]
+omit = ["*/tests/*", "*/test_*.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
+fail_under = 85
+precision = 2
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    "build",
+    "dist",
+    ".eggs",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "C90", "I", "UP"]
+ignore = ["E501"]  # Line too long (handled by formatter)
+
+[tool.ruff.lint.isort]
+known-first-party = ["odr_bootstrap"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_calls = true
+strict = true
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "scipy.*"
+ignore_missing_imports = true

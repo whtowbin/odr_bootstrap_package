@@ -1,19 +1,24 @@
 # ODR Bootstrap
 
+[![Tests](https://github.com/whtowbin/odr-bootstrap/actions/workflows/tests.yml/badge.svg)](https://github.com/whtowbin/odr-bootstrap/actions/workflows/tests.yml)
+[![codecov](https://codecov.io/gh/whtowbin/odr-bootstrap/branch/main/graph/badge.svg)](https://codecov.io/gh/whtowbin/odr-bootstrap)
+[![PyPI](https://img.shields.io/pypi/v/odr-bootstrap.svg)](https://pypi.org/project/odr-bootstrap/)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/release/python-3120/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Orthogonal Distance Regression with Bootstrap Resampling for SIMS Calibration
 
 A Python package for robust calibration curve fitting with proper uncertainty quantification in both x and y measurements.
 
 ## Overview
 
-**ODR Bootstrap** is a specialized tool for secondary ion mass spectrometry (SIMS) calibration analysis. It implements:
+**What is ODR Bootstrap?**
 
-- **Orthogonal Distance Regression (ODR)**: Fit linear calibration curves when measurement uncertainties exist in both x and y
-- **Bootstrap Resampling**: Quantify parameter uncertainty through repeated random subsampling
-- **Confidence Interval Estimation**: Compute and visualize confidence bands around fitted lines
-- **Robust Statistics**: Aggregate multiple calibration measurements into distribution estimates
+When fitting calibration curves to scientific data, measurement errors exist in both the independent variable (x, e.g., concentration) and dependent variable (y, e.g., ion intensity). Ordinary least squares regression assumes errors only in y, leading to biased fits. 
 
-The code handles publication-quality analysis with proper error propagation and visualization.
+**Orthogonal Distance Regression (ODR)** properly accounts for uncertainties in both x and y. **Bootstrap resampling** estimates confidence intervals by repeatedly refitting the model to random subsamples of the calibration data.
+
+This package combines these techniques for publication-ready uncertainty quantification in SIMS (Secondary Ion Mass Spectrometry) calibration analysis.
 
 ## Features
 
@@ -48,11 +53,16 @@ uv sync
 pip install -e .
 ```
 
+## Documentation
+
+Full documentation is available at [Read the Docs](https://odr-bootstrap.readthedocs.io).
+
+For quick reference, see:
+- [API Reference](https://odr-bootstrap.readthedocs.io/en/latest/api.html)
+- [Tutorial & Examples](https://odr-bootstrap.readthedocs.io/en/latest/tutorial.html)
+- [Examples Directory](./examples)
+
 ## Quick Start
-
-### Basic Calibration Fit
-
-```python
 import numpy as np
 import matplotlib.pyplot as plt
 from odr_bootstrap import ODR_Bootstrap, plot_regression

@@ -1,31 +1,24 @@
-"""
-Example workflow for ODR bootstrapping and calibration analysis.
+"""Example workflow for ODR bootstrapping and calibration analysis."""
 
-This script demonstrates:
-1. Creating synthetic calibration data
-2. Running ODR bootstrap fitting
-3. Plotting confidence intervals
-4. Computing and visualizing calibration estimate distributions
-"""
+from __future__ import annotations
 
 import sys
 from pathlib import Path
 
-# Add parent directory to path so we can import the module
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 import matplotlib.pyplot as plt
 import numpy as np
 
-from odr_bootstrap import (
-    ODR_Bootstrap,
-    plot_Calibration_Estimates,
-    plot_regression,
-)
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from odr_bootstrap import ODR_Bootstrap, plot_Calibration_Estimates, plot_regression
+
+OUTPUT_DIR = Path(__file__).resolve().parent
 
 
-def main():
-    """Run complete example workflow."""
+def main() -> None:
+    """Run the complete example workflow and save figures next to the script."""
 
     print("=" * 70)
     print("ODR Bootstrap Calibration Example")
@@ -95,8 +88,8 @@ def main():
     ax.set_title("SIMS Calibration Curve with 95% Bootstrap CI", fontsize=14)
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
-    fig.savefig("calibration_curve.png", dpi=150, bbox_inches="tight")
-    print("   ✓ Saved: calibration_curve.png")
+    fig.savefig(OUTPUT_DIR / "calibration_curve.png", dpi=150, bbox_inches="tight")
+    print(f"   ✓ Saved: {OUTPUT_DIR / 'calibration_curve.png'}")
     plt.close(fig)
 
     # =========================================================================
@@ -130,10 +123,10 @@ def main():
     fig = plot_Calibration_Estimates(
         fit_params,
         fit_error,
-        Title="Calibration Slope and Intercept Bootstrap Distributions"
+        Title="Calibration Slope and Intercept Bootstrap Distributions",
     )
-    fig.savefig("calibration_estimates.png", dpi=150, bbox_inches="tight")
-    print("   ✓ Saved: calibration_estimates.png")
+    fig.savefig(OUTPUT_DIR / "calibration_estimates.png", dpi=150, bbox_inches="tight")
+    print(f"   ✓ Saved: {OUTPUT_DIR / 'calibration_estimates.png'}")
     plt.close(fig)
 
     # =========================================================================

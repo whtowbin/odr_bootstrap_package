@@ -221,14 +221,6 @@ This generates:
 - `calibration_curve.png` - Fitted line with confidence band
 - `calibration_estimates.png` - Bootstrap parameter distributions
 
-## Recent Updates (April 2025)
-
-- ✅ Fixed zero-intercept ODR fits with proper scipy.odr parameter wrapping
-- ✅ Updated deprecated np.trapz API to np.trapezoid (scipy 1.15+ compatible)
-- ✅ Added comprehensive NumPy-style docstrings to all functions
-- ✅ Created 22 unit tests with 100% pass rate
-- ✅ Generated runnable example workflow
-
 ## API Reference
 
 Full documentation is available in function docstrings:

@@ -1,6 +1,5 @@
 # Configuration file for the Sphinx documentation builder.
 
-import os
 import sys
 from pathlib import Path
 
@@ -14,6 +13,7 @@ author = "Henry Towbin"
 
 # Get version from package
 import odr_bootstrap
+
 release = odr_bootstrap.__version__
 version = release
 
@@ -58,7 +58,6 @@ html_theme_options = {
     "navigation_depth": 4,
     "includehidden": True,
     "logo_only": False,
-    "display_version": True,
     "prev_next_buttons_location": "bottom",
 }
 

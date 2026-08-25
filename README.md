@@ -3,7 +3,7 @@
 [![Tests](https://github.com/whtowbin/odr-bootstrap/actions/workflows/tests.yml/badge.svg)](https://github.com/whtowbin/odr-bootstrap/actions/workflows/tests.yml)
 [![codecov](https://codecov.io/gh/whtowbin/odr-bootstrap/branch/main/graph/badge.svg)](https://codecov.io/gh/whtowbin/odr-bootstrap)
 [![PyPI](https://img.shields.io/pypi/v/odr-bootstrap.svg)](https://pypi.org/project/odr-bootstrap/)
-[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/release/python-3120/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/release/python-3100/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Orthogonal Distance Regression with Bootstrap Resampling for SIMS Calibration
@@ -63,6 +63,8 @@ For quick reference, see:
 - [Examples Directory](./examples)
 
 ## Quick Start
+
+```python
 import numpy as np
 import matplotlib.pyplot as plt
 from odr_bootstrap import ODR_Bootstrap, plot_regression
@@ -88,8 +90,14 @@ confidence_data, best_fit_params, points, all_params, subsamples = ODR_Bootstrap
 
 # Plot the result
 fig, ax = plt.subplots(figsize=(8, 5))
-plot_regression(confidence_data, datapoints=points, ax=ax, 
-                ecolor='lightblue', line_color='darkblue', linewidth=2)
+plot_regression(
+    confidence_data,
+    datapoints=points,
+    ax=ax,
+    ecolor='lightblue',
+    line_color='darkblue',
+    linewidth=2,
+)
 ax.set_xlabel('Concentration (ppm)')
 ax.set_ylabel('Ion Intensity (counts)')
 ax.set_title('SIMS Calibration Curve with 95% Bootstrap CI')
@@ -118,11 +126,30 @@ fit_params += np.random.normal(0, [all_slopes.std(), all_intercepts.std()], (5, 
 fit_error = np.array([[all_slopes.std(), all_intercepts.std()]] * 5)
 
 # Generate plot
-fig = plot_Calibration_Estimates(fit_params, fit_error,
-                               Title="Calibration Slope & Intercept Distributions")
+fig = plot_Calibration_Estimates(
+    fit_params,
+    fit_error,
+    Title="Calibration Slope & Intercept Distributions",
+)
 plt.savefig('calibration_estimates.png', dpi=150)
 plt.show()
 ```
+
+## Example Output
+
+The example script produces two useful figures for calibration analysis:
+
+### Calibration curve with bootstrap confidence band
+
+![Calibration curve with bootstrap confidence interval](calibration_curve.png)
+
+This plot shows the fitted calibration line and the shaded bootstrap uncertainty region. It is useful for publication figures and for checking whether the model tracks the data well across the full concentration range.
+
+### Bootstrap parameter distributions
+
+![Bootstrap slope and intercept distributions](calibration_estimates.png)
+
+This plot summarizes the distribution of the fitted slope and intercept across bootstrap resamples. It helps communicate how stable the calibration parameters are and how much uncertainty is associated with the estimated fit.
 
 ## Module Functions
 
@@ -213,7 +240,7 @@ help(ODR_Bootstrap)
 
 ## Requirements
 
-- Python >= 3.12
+- Python >= 3.10
 - numpy >= 2.2.4
 - scipy >= 1.15.2
 - pandas >= 2.2.3

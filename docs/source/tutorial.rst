@@ -89,26 +89,21 @@ The ``ODR_Bootstrap`` function returns a 5-tuple:
 
    confidence_data, best_fit_params, points, all_params, subsamples = ODR_Bootstrap(...)
 
-**confidence_data** (pandas.DataFrame)
-  Confidence interval bounds indexed by x-values. Contains columns:
-  - ``best_fit``: Fitted values at each x
-  - ``neg_error_bound``: Lower confidence bound
-  - ``pos_error_bound``: Upper confidence bound
-  - ``percent_error_neg``: Negative percent error
-  - ``percent_error_pos``: Positive percent error
+- ``confidence_data`` (``pandas.DataFrame``): Confidence interval bounds indexed by x-values. It contains columns such as:
 
-**best_fit_params** (numpy.ndarray)
-  Best-fit parameters [slope, intercept] from the full dataset
+  - ``best_fit``: fitted values at each x
+  - ``neg_error_bound``: lower confidence bound
+  - ``pos_error_bound``: upper confidence bound
+  - ``percent_error_neg``: negative percent error
+  - ``percent_error_pos``: positive percent error
 
-**points** (pandas.DataFrame)
-  Cleaned input data with columns: x, y, xerr, yerr (NaN values removed)
+- ``best_fit_params`` (``numpy.ndarray``): Best-fit parameters [slope, intercept] from the full dataset.
 
-**all_params** (list of numpy.ndarray)
-  Bootstrap parameter estimates. First element is best_fit_params;
-  remaining elements are bootstrap resamples
+- ``points`` (``pandas.DataFrame``): Cleaned input data with columns ``x``, ``y``, ``xerr``, and ``yerr`` after NaN rows are removed.
 
-**subsamples** (list of pandas.DataFrame)
-  DataFrames used for each bootstrap resample
+- ``all_params`` (list of ``numpy.ndarray``): Bootstrap parameter estimates. The first element is ``best_fit_params`` and the remaining elements are bootstrap resamples.
+
+- ``subsamples`` (list of ``pandas.DataFrame``): DataFrames used for each bootstrap resample.
 
 Analyzing Bootstrap Distributions
 ==================================
@@ -205,17 +200,11 @@ Compute multiple confidence intervals on the same fit:
 Data Quality Considerations
 ===========================
 
-NaN Handling
-  The package automatically removes rows with NaN values before fitting.
-  No explicit data cleaning required.
+- **NaN Handling**: The package automatically removes rows with NaN values before fitting, so no explicit data cleaning is required in most workflows.
 
-Outlier Detection
-  Bootstrap resampling naturally downweights outliers through repeated sampling.
-  For extreme outliers, consider pre-filtering your data.
+- **Outlier Detection**: Bootstrap resampling naturally downweights outliers through repeated sampling. For extreme outliers, consider pre-filtering your data.
 
-Error Estimates
-  Input uncertainties are crucial for proper ODR weighting.
-  If unavailable, use relative percentages (e.g., 5% of measurement value).
+- **Error Estimates**: Input uncertainties are crucial for proper ODR weighting. If unavailable, use relative percentages such as 5% of the measurement value.
 
 Performance Tips
 ================

@@ -72,7 +72,6 @@ Development
    :maxdepth: 1
    :caption: Contributing & Support
 
-   CONTRIBUTING
    changelog
 
 Project Links

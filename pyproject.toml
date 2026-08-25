@@ -7,7 +7,7 @@ name = "odr-bootstrap"
 version = "0.1.0"
 description = "Orthogonal Distance Regression with Bootstrap Resampling for SIMS Calibration"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
     {name = "Henry Towbin", email = "htowbin@caltech.edu"}
@@ -18,7 +18,11 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
@@ -81,7 +85,7 @@ precision = 2
 
 [tool.ruff]
 line-length = 88
-target-version = "py312"
+target-version = "py310"
 exclude = [
     ".git",
     ".venv",
@@ -100,7 +104,7 @@ ignore = ["E501"]  # Line too long (handled by formatter)
 known-first-party = ["odr_bootstrap"]
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

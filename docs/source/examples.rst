@@ -20,7 +20,37 @@ This generates:
 Example Output
 ==============
 
-When you run ``example.py``, you'll see:
+The example writes two publication-quality figures from the same synthetic calibration dataset. Together they show both the fitted calibration relationship and the uncertainty in the fitted parameters.
+
+The first plot shows the best-fit line with a bootstrap confidence band, while the second summarizes the distribution of the slope and intercept estimates across many resampled fits.
+
+Calibration Fit
+---------------
+
+.. figure:: _static/calibration_curve.png
+   :alt: Calibration curve with bootstrap confidence interval
+   :width: 100%
+
+   The fitted regression line follows the expected linear trend while the shaded band captures the uncertainty estimated by bootstrap resampling.
+
+Parameter Uncertainty
+---------------------
+
+.. figure:: _static/calibration_estimates.png
+   :alt: Bootstrap calibration slope and intercept distributions
+   :width: 100%
+
+   The distribution of slope and intercept estimates provides a compact view of parameter uncertainty, which is especially useful for scientific reporting.
+
+What to look for in these figures
+---------------------------------
+
+- The regression fit should align closely with the measured calibration points.
+- The confidence band should widen as the uncertainty in the fit increases.
+- The parameter histograms should be centered near the best-fit slope and intercept values.
+- Larger resample counts usually produce smoother, more stable distributions.
+
+The console output is structured as follows:
 
 .. code-block:: text
 

@@ -136,5 +136,7 @@ Thumbs.db
 # Project outputs
 *.png
 *.pdf
-calibration_curve.png
-calibration_estimates.png
+!calibration_curve.png
+!calibration_estimates.png
+!docs/source/_static/*.png
+!examples/*.png

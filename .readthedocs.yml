@@ -7,9 +7,11 @@ build:
     uv: "latest"
 
 python:
-  version: 3.12
   install:
-    - requirements: docs/requirements.txt
+    - method: pip
+      path: .
+      extra_requirements:
+        - docs
 
 sphinx:
   configuration: docs/source/conf.py
@@ -25,6 +27,3 @@ exclude_patterns:
 
 # Index page configuration
 redirect_www: false
-
-# Versioning
-version: latest

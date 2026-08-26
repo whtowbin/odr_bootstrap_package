@@ -135,13 +135,13 @@ The example script produces two useful figures for calibration analysis:
 
 ### Calibration curve with bootstrap confidence band
 
-![Calibration curve with bootstrap confidence interval](calibration_curve.png)
+![Calibration curve with bootstrap confidence interval](https://raw.githubusercontent.com/whtowbin/odr_bootstrap_package/main/calibration_curve.png)
 
 This plot shows the fitted calibration line and the shaded bootstrap uncertainty region. It is useful for publication figures and for checking whether the model tracks the data well across the full concentration range.
 
 ### Bootstrap parameter distributions
 
-![Bootstrap slope and intercept distributions](calibration_estimates.png)
+![Bootstrap slope and intercept distributions](https://raw.githubusercontent.com/whtowbin/odr_bootstrap_package/main/calibration_estimates.png)
 
 This plot summarizes the distribution of the fitted slope and intercept across bootstrap resamples. It helps communicate how stable the calibration parameters are and how much uncertainty is associated with the estimated fit.
 

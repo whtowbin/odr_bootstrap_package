@@ -57,8 +57,23 @@ Changelog = "https://github.com/whtowbin/odr_bootstrap_package/blob/main/CHANGEL
 [tool.hatch.version]
 path = "odr_bootstrap/__init__.py"
 
+[tool.hatch.build.targets.sdist]
+include = [
+    "odr_bootstrap/**",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "docs/**",
+    "examples/**",
+    "*.png",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["odr_bootstrap"]
+artifacts = [
+    "*.png",
+    "examples/*.png",
+]
 
 [tool.pytest.ini_options]
 minversion = "7.0"

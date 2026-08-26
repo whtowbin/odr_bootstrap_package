@@ -20,7 +20,7 @@ April 2025:
   - Updated deprecated np.trapz to np.trapezoid for scipy 1.15+ compatibility.
 """
 
-from typing import Any, TypeAlias, cast
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -28,25 +28,22 @@ import pandas as pd
 import scipy.stats as stats
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-from numpy.typing import NDArray
 from scipy import odr
 
-FloatArray: TypeAlias = NDArray[np.float64]
 
-
-def _as_float_array(values: FloatArray | list[float]) -> FloatArray:
+def _as_float_array(values: np.ndarray | list[float]) -> np.ndarray:
     """Convert array-like inputs into a float ndarray for downstream math."""
-    return cast(FloatArray, np.asarray(values, dtype=float))
+    return np.asarray(values, dtype=float)
 
 
 def ODR_Linear(
-    x: FloatArray | list[float],
-    y: FloatArray | list[float],
-    x_err: FloatArray | list[float],
-    y_err: FloatArray | list[float],
+    x: np.ndarray | list[float],
+    y: np.ndarray | list[float],
+    x_err: np.ndarray | list[float],
+    y_err: np.ndarray | list[float],
     intercept: bool = False,
     InitialGuess: list[float] | None = None,
-) -> tuple[FloatArray, FloatArray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Fit a linear model using orthogonal distance regression (ODR).
 
@@ -74,18 +71,18 @@ def ODR_Linear(
         `Popt`, `Perr` where `Popt` is the fitted parameter array and `Perr`
         is the 1-sigma uncertainty array.
     """
-    def yint_func(p: FloatArray | list[float], x: FloatArray | list[float]) -> FloatArray:
+    def yint_func(p: np.ndarray | list[float], x: np.ndarray | list[float]) -> np.ndarray:
         params = _as_float_array(p)
         x_arr = _as_float_array(x)
         slope = float(params[0])
         intercept = float(params[1])
-        return cast(FloatArray, np.asarray(slope * x_arr + intercept, dtype=float))
+        return np.asarray(slope * x_arr + intercept, dtype=float)
 
-    def slope_func(p: FloatArray | list[float], x: FloatArray | list[float]) -> FloatArray:
+    def slope_func(p: np.ndarray | list[float], x: np.ndarray | list[float]) -> np.ndarray:
         params = _as_float_array(p)
         x_arr = _as_float_array(x)
         slope = float(params[0])
-        return cast(FloatArray, np.asarray(slope * x_arr, dtype=float))
+        return np.asarray(slope * x_arr, dtype=float)
 
     if InitialGuess is None:
         InitialGuess = [100, 1]
@@ -108,13 +105,13 @@ def ODR_Linear(
 
 
 def ODR_Linear_Test(
-    x: FloatArray | list[float],
-    y: FloatArray | list[float],
-    x_err: FloatArray | list[float],
-    y_err: FloatArray | list[float],
+    x: np.ndarray | list[float],
+    y: np.ndarray | list[float],
+    x_err: np.ndarray | list[float],
+    y_err: np.ndarray | list[float],
     intercept: bool = False,
     InitialGuess: list[float] = [100, 1],
-) -> tuple[FloatArray, FloatArray, Any]:
+) -> tuple[np.ndarray, np.ndarray, Any]:
     """
     Fit a linear model using ODR and return the raw ODR output.
 
@@ -141,18 +138,18 @@ def ODR_Linear_Test(
     tuple
         `Popt`, `Perr`, `odr_output` where `odr_output` is the full ODR result.
     """
-    def yint_func(p: FloatArray | list[float], x: FloatArray | list[float]) -> FloatArray:
+    def yint_func(p: np.ndarray | list[float], x: np.ndarray | list[float]) -> np.ndarray:
         params = _as_float_array(p)
         x_arr = _as_float_array(x)
         slope = float(params[0])
         intercept = float(params[1])
-        return cast(FloatArray, np.asarray(slope * x_arr + intercept, dtype=float))
+        return np.asarray(slope * x_arr + intercept, dtype=float)
 
-    def slope_func(p: FloatArray | list[float], x: FloatArray | list[float]) -> FloatArray:
+    def slope_func(p: np.ndarray | list[float], x: np.ndarray | list[float]) -> np.ndarray:
         params = _as_float_array(p)
         x_arr = _as_float_array(x)
         slope = float(params[0])
-        return cast(FloatArray, np.asarray(slope * x_arr, dtype=float))
+        return np.asarray(slope * x_arr, dtype=float)
 
     linear_model = odr.Model(yint_func)
     beta0 = InitialGuess
@@ -172,14 +169,14 @@ def ODR_Linear_Test(
 
 
 def Bootstrap_fit(
-    x: FloatArray | list[float],
-    y: FloatArray | list[float],
-    x_err: FloatArray | list[float],
-    y_err: FloatArray | list[float],
+    x: np.ndarray | list[float],
+    y: np.ndarray | list[float],
+    x_err: np.ndarray | list[float],
+    y_err: np.ndarray | list[float],
     resample_draws: int,
     InterceptFit: bool = True,
     InitialGuess: list[float] = [100, 1],
-) -> tuple[list[FloatArray], list[pd.DataFrame]]:
+) -> tuple[list[np.ndarray], list[pd.DataFrame]]:
     """
     Perform bootstrap resampling of ODR linear fits.
 
@@ -210,7 +207,7 @@ def Bootstrap_fit(
         subsamples : list of pandas.DataFrame
             Resampled DataFrame objects used for each bootstrap iteration.
     """
-    def resample(count: int) -> NDArray[np.int64]:
+    def resample(count: int) -> np.ndarray:
         return np.random.randint(0, count, count)
 
     InitialGuess = list(InitialGuess)
@@ -249,7 +246,7 @@ def Bootstrap_fit(
     return Fit_Param, subs
 
 
-def yint_func(p: FloatArray | list[float], x: FloatArray | list[float]) -> FloatArray:
+def yint_func(p: np.ndarray | list[float], x: np.ndarray | list[float]) -> np.ndarray:
     """
     Evaluate a line with slope and intercept.
 
@@ -269,10 +266,10 @@ def yint_func(p: FloatArray | list[float], x: FloatArray | list[float]) -> Float
     x_arr = _as_float_array(x)
     slope = float(params[0])
     intercept = float(params[1])
-    return cast(FloatArray, np.asarray(slope * x_arr + intercept, dtype=float))
+    return np.asarray(slope * x_arr + intercept, dtype=float)
 
 
-def slope_func(p: FloatArray | list[float], x: FloatArray | list[float]) -> FloatArray:
+def slope_func(p: np.ndarray | list[float], x: np.ndarray | list[float]) -> np.ndarray:
     """
     Evaluate a line through the origin.
 
@@ -291,11 +288,11 @@ def slope_func(p: FloatArray | list[float], x: FloatArray | list[float]) -> Floa
     params = _as_float_array(p)
     x_arr = _as_float_array(x)
     slope = float(params[0])
-    return cast(FloatArray, np.asarray(slope * x_arr, dtype=float))
+    return np.asarray(slope * x_arr, dtype=float)
 
 
 def Eval_Conf(
-    Fit_Param: list[FloatArray],
+    Fit_Param: list[np.ndarray],
     Confidence_Bound: float = 0.95,
     LineMax: int = 200,
     LineInt: int = 1,
@@ -438,10 +435,10 @@ def plot_regression(
 
 
 def ODR_Bootstrap(
-    x: FloatArray | list[float],
-    y: FloatArray | list[float],
-    x_err: FloatArray | list[float],
-    y_err: FloatArray | list[float],
+    x: np.ndarray | list[float],
+    y: np.ndarray | list[float],
+    x_err: np.ndarray | list[float],
+    y_err: np.ndarray | list[float],
     resample_draws: int = 5000,
     LineMax: int = 200,
     LineInterval: int = 1,
@@ -451,7 +448,7 @@ def ODR_Bootstrap(
     plot: bool = False,
     ax: Axes | None = None,
     **kwargs: Any,
-) -> tuple[pd.DataFrame, FloatArray, pd.DataFrame, list[FloatArray], list[pd.DataFrame]]:
+) -> tuple[pd.DataFrame, np.ndarray, pd.DataFrame, list[np.ndarray], list[pd.DataFrame]]:
     """
     Run bootstrap resampling for ODR linear fitting and compute confidence data.
 
@@ -514,10 +511,10 @@ def ODR_Bootstrap(
 
 
 def gauss_agv_err(
-    concentrations: FloatArray | list[float],
-    errors: FloatArray | list[float],
+    concentrations: np.ndarray | list[float],
+    errors: np.ndarray | list[float],
     cut_off: float = 0.000001,
-) -> tuple[dict[str, FloatArray], dict[str, Any]]:
+) -> tuple[dict[str, np.ndarray], dict[str, Any]]:
     """
     Compute an aggregate Gaussian distribution from values and uncertainties.
 
@@ -543,10 +540,10 @@ def gauss_agv_err(
             Summary information including mean, mode, midpoint, and bounds.
     """
     def gaussian(
-        x_values: FloatArray,
-        sigma: FloatArray | float,
-        avg: FloatArray | float,
-    ) -> FloatArray:
+        x_values: np.ndarray,
+        sigma: np.ndarray | float,
+        avg: np.ndarray | float,
+    ) -> np.ndarray:
         sigma_arr = np.asarray(sigma, dtype=float)
         avg_arr = np.asarray(avg, dtype=float)
         result = (1 / (sigma_arr * np.sqrt(2 * np.pi))) * np.exp(
@@ -555,7 +552,7 @@ def gauss_agv_err(
         return np.asarray(result, dtype=float)
 
     def CI_bound(
-        xi: FloatArray, data: FloatArray, bound_fraction: float
+        xi: np.ndarray, data: np.ndarray, bound_fraction: float
     ) -> float:
         cumulative = np.cumsum(data)
         index = np.searchsorted(cumulative, bound_fraction, side="left")
@@ -564,7 +561,7 @@ def gauss_agv_err(
         return float(round(xi[index], 2))
 
     def find_range(
-        avgs: FloatArray | list[float], sigmas: FloatArray | list[float]
+        avgs: np.ndarray | list[float], sigmas: np.ndarray | list[float]
     ) -> tuple[float, float]:
         avg_arr = np.asarray(avgs, dtype=float)
         sigma_arr = np.asarray(sigmas, dtype=float)
@@ -616,7 +613,7 @@ def gauss_agv_err(
 
 
 def plot_datapoints(
-    data: dict[str, FloatArray],
+    data: dict[str, np.ndarray],
     bounds: dict[str, Any],
     ax: Axes | None = None,
     sample_name: str | None = None,
@@ -700,8 +697,8 @@ def plot_datapoints(
 
 
 def plot_Calibration_Estimates(
-    fit_params: FloatArray | list[list[float]],
-    fit_error: FloatArray | list[list[float]],
+    fit_params: np.ndarray | list[list[float]],
+    fit_error: np.ndarray | list[list[float]],
     Title: str = "Calibration Line Fits",
 ) -> Figure:
     """

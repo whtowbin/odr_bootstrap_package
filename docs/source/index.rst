@@ -6,11 +6,11 @@ ODR Bootstrap Documentation
 
 |tests| |coverage| |pypi| |license|
 
-.. |tests| image:: https://github.com/whtowbin/odr-bootstrap/actions/workflows/tests.yml/badge.svg
-   :target: https://github.com/whtowbin/odr-bootstrap/actions/workflows/tests.yml
+.. |tests| image:: https://github.com/whtowbin/odr_bootstrap_package/actions/workflows/tests.yml/badge.svg
+   :target: https://github.com/whtowbin/odr_bootstrap_package/actions/workflows/tests.yml
 
-.. |coverage| image:: https://codecov.io/gh/whtowbin/odr-bootstrap/branch/main/graph/badge.svg
-   :target: https://codecov.io/gh/whtowbin/odr-bootstrap
+.. |coverage| image:: https://codecov.io/gh/whtowbin/odr_bootstrap_package/branch/main/graph/badge.svg
+   :target: https://codecov.io/gh/whtowbin/odr_bootstrap_package
 
 .. |pypi| image:: https://img.shields.io/pypi/v/odr-bootstrap.svg
    :target: https://pypi.org/project/odr-bootstrap/
@@ -78,14 +78,14 @@ Development
 Project Links
 =============
 
-- **Source Code**: `GitHub <https://github.com/whtowbin/odr-bootstrap>`_
-- **Issue Tracker**: `GitHub Issues <https://github.com/whtowbin/odr-bootstrap/issues>`_
+- **Source Code**: `GitHub <https://github.com/whtowbin/odr_bootstrap_package>`_
+- **Issue Tracker**: `GitHub Issues <https://github.com/whtowbin/odr_bootstrap_package/issues>`_
 - **PyPI**: `odr-bootstrap <https://pypi.org/project/odr-bootstrap/>`_
 
 License
 =======
 
-MIT License - See `LICENSE <https://github.com/whtowbin/odr-bootstrap/blob/main/LICENSE>`_ for details.
+MIT License - See `LICENSE <https://github.com/whtowbin/odr_bootstrap_package/blob/main/LICENSE>`_ for details.
 
 Citation
 ========
@@ -98,7 +98,7 @@ If you use this package in research, please cite:
      title={ODR Bootstrap: Orthogonal Distance Regression with Bootstrap Resampling},
      author={Towbin, Henry},
      year={2025},
-     url={https://github.com/whtowbin/odr-bootstrap}
+     url={https://github.com/whtowbin/odr_bootstrap_package}
    }
 
 ---

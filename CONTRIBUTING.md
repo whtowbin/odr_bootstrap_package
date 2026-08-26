@@ -7,7 +7,7 @@ Thank you for considering contributing to `odr-bootstrap`! This guide will help 
 ### 1. Fork and Clone
 
 ```bash
-git clone https://github.com/<your-username>/odr-bootstrap.git
+git clone https://github.com/<your-username>/odr_bootstrap_package.git
 cd odr-bootstrap
 ```
 
@@ -230,7 +230,7 @@ TypeError: cannot perform reduce with flexible type
 
 ## Questions?
 
-Open a discussion or issue on [GitHub Issues](https://github.com/whtowbin/odr-bootstrap/issues).
+Open a discussion or issue on [GitHub Issues](https://github.com/whtowbin/odr_bootstrap_package/issues).
 
 ---
 

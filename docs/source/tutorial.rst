@@ -219,4 +219,4 @@ See Also
 
 - :doc:`api` for detailed function signatures and options
 - :doc:`examples` for complete working scripts
-- `GitHub Issues <https://github.com/whtowbin/odr-bootstrap/issues>`_ for questions or bugs
+- `GitHub Issues <https://github.com/whtowbin/odr_bootstrap_package/issues>`_ for questions or bugs

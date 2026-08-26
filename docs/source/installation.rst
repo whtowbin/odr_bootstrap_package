@@ -30,8 +30,8 @@ From source
 
 .. code-block:: bash
 
-   git clone https://github.com/whtowbin/odr-bootstrap.git
-   cd odr-bootstrap
+   git clone https://github.com/whtowbin/odr_bootstrap_package.git
+   cd odr_bootstrap_package
 
    # recommended development setup
    uv sync --all-extras

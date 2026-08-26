@@ -12,7 +12,7 @@ copyright = "2025, Henry Towbin"
 author = "Henry Towbin"
 
 # Get version from package
-import odr_bootstrap
+import odr_bootstrap  # noqa: E402
 
 release = odr_bootstrap.__version__
 version = release

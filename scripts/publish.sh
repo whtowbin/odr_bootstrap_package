@@ -1,70 +1,59 @@
 #!/bin/bash
-# Publish odr-bootstrap to PyPI using uv build
-# 
-# This script builds the package and publishes it to PyPI.
-# It should typically be run by GitHub Actions on release creation.
+# Publish odr-bootstrap using uv's build and publish pipeline.
 #
 # Usage:
-#   ./scripts/publish.sh             # Publish to PyPI (requires PyPI token)
-#   TESTPYPI=1 ./scripts/publish.sh  # Publish to TestPyPI (test environment)
+#   ./scripts/publish.sh             # Publish to PyPI (requires UV_PUBLISH_TOKEN or trusted publishing)
+#   TESTPYPI=1 ./scripts/publish.sh  # Publish to TestPyPI
 
-set -e
+set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_DIR"
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 echo -e "${GREEN}=== ODR Bootstrap Publisher ===${NC}"
 
-# Check if uv is installed
 if ! command -v uv &> /dev/null; then
-    echo -e "${RED}Error: uv is not installed${NC}"
-    echo "Install from: https://docs.astral.sh/uv/getting-started/installation/"
+    echo -e "${RED}Error: uv is not installed.${NC}"
+    echo "Install it from: https://docs.astral.sh/uv/getting-started/installation/"
     exit 1
 fi
 
-# Check if twine is installed
-if ! command -v twine &> /dev/null; then
-    echo -e "${YELLOW}Warning: twine is not installed${NC}"
-    echo "Installing twine..."
-    pip install twine
-fi
-
-# Clean previous builds
-echo -e "${YELLOW}Cleaning previous builds...${NC}"
-rm -rf build/ dist/ *.egg-info
+# Run the same validation used in the release workflow.
+echo -e "${YELLOW}Running pre-release checks...${NC}"
+uv sync --all-extras
+uv run pytest
+uv run ruff check .
+uv run mypy odr_bootstrap
+uv run --extra docs sphinx-build -b html docs/source docs/build/html
 
 # Build distribution
-echo -e "${YELLOW}Building distribution with uv...${NC}"
+echo -e "${YELLOW}Building release artifacts...${NC}"
 uv build
 
-# Check build artifacts
-if [ ! -f "dist"/*.whl ] || [ ! -f "dist"/*.tar.gz ]; then
-    echo -e "${RED}Error: Build failed - no artifacts found${NC}"
+# Check that artifacts were created
+shopt -s nullglob
+WHEELS=(dist/*.whl)
+SDISTS=(dist/*.tar.gz)
+if [ "${#WHEELS[@]}" -eq 0 ] || [ "${#SDISTS[@]}" -eq 0 ]; then
+    echo -e "${RED}Error: build failed; no distribution artifacts were produced.${NC}"
     exit 1
 fi
 
 echo -e "${GREEN}✓ Build successful${NC}"
-echo "  Wheel: $(ls dist/*.whl)"
-echo "  Sdist: $(ls dist/*.tar.gz)"
+echo "  Wheel: ${WHEELS[0]}"
+echo "  Source distribution: ${SDISTS[0]}"
 
-# Publish
-if [ "$TESTPYPI" = "1" ]; then
-    REPO="testpypi"
-    REPO_URL="https://test.pypi.org"
+if [ "${TESTPYPI:-0}" = "1" ]; then
     echo -e "${YELLOW}Publishing to TestPyPI...${NC}"
+    uv publish --publish-url https://test.pypi.org/legacy/
+    echo -e "${GREEN}✓ Published to TestPyPI${NC}"
 else
-    REPO="pypi"
-    REPO_URL="https://pypi.org"
     echo -e "${YELLOW}Publishing to PyPI...${NC}"
+    uv publish
+    echo -e "${GREEN}✓ Published to PyPI${NC}"
 fi
-
-twine upload --repository "$REPO" dist/*
-
-echo -e "${GREEN}✓ Publication successful!${NC}"
-echo "  View at: $REPO_URL/project/odr-bootstrap/"

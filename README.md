@@ -18,16 +18,9 @@ When fitting calibration curves to scientific data, measurement errors exist in 
 
 **Orthogonal Distance Regression (ODR)** properly accounts for uncertainties in both x and y. **Bootstrap resampling** estimates confidence intervals by repeatedly refitting the model to random subsamples of the calibration data.
 
-This package combines these techniques for publication-ready uncertainty quantification in SIMS (Secondary Ion Mass Spectrometry) calibration analysis.
+This package combines these techniques for publication-ready uncertainty quantification in SIMS (Secondary Ion Mass Spectrometry) calibration analysis. It is broadly applicable to other types of analytical calibrations and uses of linear regressions. 
 
-## Features
 
-✅ NumPy-style documentation for all functions  
-✅ 22 comprehensive unit tests (100% pass rate)  
-✅ Runnable example workflow with synthetic data  
-✅ Compatible with scipy 1.15+ (deprecated API updates)  
-✅ Zero-intercept fits with proper parameter handling  
-✅ Publication-ready calibration plots  
 
 ## Installation
 
@@ -192,21 +185,6 @@ This plot summarizes the distribution of the fitted slope and intercept across b
 - **`plot_Calibration_Estimates(fit_params, fit_error, Title=...)`**  
   Side-by-side slope and intercept distribution plots.
 
-## Testing
-
-Run the comprehensive test suite:
-
-```bash
-python -m unittest tests/test_odr_bootstrap.py -v
-```
-
-Or with pytest:
-
-```bash
-pytest tests/ -v
-```
-
-All 22 tests should pass.
 
 ## Example Workflow
 
@@ -255,13 +233,6 @@ If you use this package in research, please cite:
 }
 ```
 
-## Contributing
-
-Contributions welcome! Please open an issue or submit a pull request.
-
-## Acknowledgments
-
-Developed at Caltech for SIMS calibration analysis workflows.
 
 ---
 

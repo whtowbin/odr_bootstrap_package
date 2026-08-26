@@ -119,9 +119,6 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# UV lock file
-uv.lock
-
 # IDE
 .vscode/
 .idea/

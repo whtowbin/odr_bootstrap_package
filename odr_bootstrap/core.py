@@ -26,7 +26,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy.stats as stats
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from scipy import odr
+
+
+def _as_float_array(values: np.ndarray | list[float]) -> np.ndarray:
+    """Convert array-like inputs into a float ndarray for downstream math."""
+    return np.asarray(values, dtype=float)
 
 
 def ODR_Linear(
@@ -65,12 +72,17 @@ def ODR_Linear(
         is the 1-sigma uncertainty array.
     """
     def yint_func(p: np.ndarray | list[float], x: np.ndarray | list[float]) -> np.ndarray:
-        a, b = p
-        return a * x + b
+        params = _as_float_array(p)
+        x_arr = _as_float_array(x)
+        slope = float(params[0])
+        intercept = float(params[1])
+        return np.asarray(slope * x_arr + intercept, dtype=float)
 
     def slope_func(p: np.ndarray | list[float], x: np.ndarray | list[float]) -> np.ndarray:
-        a = p
-        return a * x
+        params = _as_float_array(p)
+        x_arr = _as_float_array(x)
+        slope = float(params[0])
+        return np.asarray(slope * x_arr, dtype=float)
 
     if InitialGuess is None:
         InitialGuess = [100, 1]
@@ -87,8 +99,8 @@ def ODR_Linear(
     myodr.set_job(fit_type=0)
     out = myodr.run()
 
-    Popt = out.beta
-    Perr = out.sd_beta
+    Popt = np.asarray(out.beta, dtype=float)
+    Perr = np.asarray(out.sd_beta, dtype=float)
     return Popt, Perr
 
 
@@ -126,13 +138,18 @@ def ODR_Linear_Test(
     tuple
         `Popt`, `Perr`, `odr_output` where `odr_output` is the full ODR result.
     """
-    def yint_func(p, x):
-        a, b = p
-        return a * x + b
+    def yint_func(p: np.ndarray | list[float], x: np.ndarray | list[float]) -> np.ndarray:
+        params = _as_float_array(p)
+        x_arr = _as_float_array(x)
+        slope = float(params[0])
+        intercept = float(params[1])
+        return np.asarray(slope * x_arr + intercept, dtype=float)
 
-    def slope_func(p, x):
-        a = p
-        return a * x
+    def slope_func(p: np.ndarray | list[float], x: np.ndarray | list[float]) -> np.ndarray:
+        params = _as_float_array(p)
+        x_arr = _as_float_array(x)
+        slope = float(params[0])
+        return np.asarray(slope * x_arr, dtype=float)
 
     linear_model = odr.Model(yint_func)
     beta0 = InitialGuess
@@ -146,8 +163,8 @@ def ODR_Linear_Test(
     myodr.set_job(fit_type=0)
     out = myodr.run()
 
-    Popt = out.beta
-    Perr = out.sd_beta
+    Popt = np.asarray(out.beta, dtype=float)
+    Perr = np.asarray(out.sd_beta, dtype=float)
     return Popt, Perr, out
 
 
@@ -190,7 +207,7 @@ def Bootstrap_fit(
         subsamples : list of pandas.DataFrame
             Resampled DataFrame objects used for each bootstrap iteration.
     """
-    def resample(count):
+    def resample(count: int) -> np.ndarray:
         return np.random.randint(0, count, count)
 
     InitialGuess = list(InitialGuess)
@@ -245,8 +262,11 @@ def yint_func(p: np.ndarray | list[float], x: np.ndarray | list[float]) -> np.nd
     ndarray
         Evaluated y values.
     """
-    a, b = p
-    return a * x + b
+    params = _as_float_array(p)
+    x_arr = _as_float_array(x)
+    slope = float(params[0])
+    intercept = float(params[1])
+    return np.asarray(slope * x_arr + intercept, dtype=float)
 
 
 def slope_func(p: np.ndarray | list[float], x: np.ndarray | list[float]) -> np.ndarray:
@@ -265,8 +285,10 @@ def slope_func(p: np.ndarray | list[float], x: np.ndarray | list[float]) -> np.n
     ndarray
         Evaluated y values.
     """
-    a = p
-    return a * x
+    params = _as_float_array(p)
+    x_arr = _as_float_array(x)
+    slope = float(params[0])
+    return np.asarray(slope * x_arr, dtype=float)
 
 
 def Eval_Conf(
@@ -302,13 +324,14 @@ def Eval_Conf(
         - percent_error_neg
         - percent_error_pos
     """
-    if len(Fit_Param[0]) > 2:
+    first_param = np.asarray(Fit_Param[0], dtype=float)
+    if len(first_param) > 2:
         raise ValueError(
             "Fit_Param has too many inputs per row. Line inputs must be 1 or 2 parameters."
         )
 
     FitFunc = yint_func
-    if len(Fit_Param[0]) == 1:
+    if len(first_param) == 1:
         FitFunc = slope_func
 
     evaluated = []
@@ -344,13 +367,13 @@ def plot_regression(
     datapoints: pd.DataFrame | None = None,
     LineMax: int = 200,
     LineInt: int = 1,
-    ax: plt.Axes | None = None,
+    ax: Axes | None = None,
     ecolor: str = "r",
     line_color: str = "b",
     sigma: int = 2,
     e_alpha: float = 0.5,
     **kwargs: Any,
-) -> plt.Axes:
+) -> Axes:
     """
     Plot a best-fit regression line and its bootstrap confidence band.
 
@@ -423,7 +446,7 @@ def ODR_Bootstrap(
     InitialGuess: list[float] = [100, 1],
     Confidence_Bound: float = 0.95,
     plot: bool = False,
-    ax: plt.Axes | None = None,
+    ax: Axes | None = None,
     **kwargs: Any,
 ) -> tuple[pd.DataFrame, np.ndarray, pd.DataFrame, list[np.ndarray], list[pd.DataFrame]]:
     """
@@ -484,7 +507,7 @@ def ODR_Bootstrap(
     points = pd.DataFrame({"x": x, "y": y, "xerr": x_err, "yerr": y_err})
     points.dropna(inplace=True)
 
-    return confidence_data, param[0], points, param, subs
+    return confidence_data, np.asarray(param[0], dtype=float), points, param, subs
 
 
 def gauss_agv_err(
@@ -516,43 +539,62 @@ def gauss_agv_err(
         statistics : dict
             Summary information including mean, mode, midpoint, and bounds.
     """
-    def gaussian(x, sigma, avg):
-        return (1 / (sigma * np.sqrt(2 * np.pi))) * np.exp(
-            -0.5 * ((x - avg) / sigma) ** 2
+    def gaussian(
+        x_values: np.ndarray,
+        sigma: np.ndarray | float,
+        avg: np.ndarray | float,
+    ) -> np.ndarray:
+        sigma_arr = np.asarray(sigma, dtype=float)
+        avg_arr = np.asarray(avg, dtype=float)
+        result = (1 / (sigma_arr * np.sqrt(2 * np.pi))) * np.exp(
+            -0.5 * ((x_values - avg_arr) / sigma_arr) ** 2
         )
+        return np.asarray(result, dtype=float)
 
-    def CI_bound(xi, data, bound_fraction):
-        for n, val in enumerate(np.cumsum(data)):
-            if val > bound_fraction:
-                return round(xi[n], 2)
+    def CI_bound(
+        xi: np.ndarray, data: np.ndarray, bound_fraction: float
+    ) -> float:
+        cumulative = np.cumsum(data)
+        index = np.searchsorted(cumulative, bound_fraction, side="left")
+        if index >= len(xi):
+            raise ValueError("Could not locate the requested confidence bound.")
+        return float(round(xi[index], 2))
 
-    def find_range(avgs, sigmas):
-        max_val = np.max(avgs) + 3 * np.max(sigmas)
-        min_val = np.min(avgs) - 3 * np.max(sigmas)
+    def find_range(
+        avgs: np.ndarray | list[float], sigmas: np.ndarray | list[float]
+    ) -> tuple[float, float]:
+        avg_arr = np.asarray(avgs, dtype=float)
+        sigma_arr = np.asarray(sigmas, dtype=float)
+        max_val = float(np.max(avg_arr) + 3 * np.max(sigma_arr))
+        min_val = float(np.min(avg_arr) - 3 * np.max(sigma_arr))
         return min_val, max_val
 
-    min_val, max_val = find_range(concentrations, errors)
+    concentrations_arr = np.asarray(concentrations, dtype=float)
+    errors_arr = np.asarray(errors, dtype=float)
+
+    min_val, max_val = find_range(concentrations_arr, errors_arr)
     xi = np.arange(min_val, max_val, 0.01)
-    x = np.tile(xi, (len(concentrations), 1))
-    unnormed_data = np.sum(gaussian(x.T, errors, concentrations), axis=1)
-    # Use np.trapezoid (scipy >= 1.15) instead of deprecated np.trapz
+    x = np.tile(xi, (len(concentrations_arr), 1))
+    unnormed_data = np.sum(gaussian(x.T, errors_arr, concentrations_arr), axis=1)
     data = unnormed_data / np.trapezoid(unnormed_data)
 
-    average = np.dot(xi, data) / np.sum(data)
-    most_frequent = xi[np.argmax(data)]
-    best_fit = concentrations[0]
+    average = float(np.dot(xi, data) / np.sum(data))
+    most_frequent = float(xi[np.argmax(data)])
+    best_fit = float(concentrations_arr[0])
 
     center_of_mass = CI_bound(xi, data, 0.50)
-    one_sigma_bounds = CI_bound(xi, data, 0.16), CI_bound(xi, data, 0.84)
-    two_sigma_bounds = CI_bound(xi, data, 0.05), CI_bound(xi, data, 0.95)
+    lower_16, upper_84 = CI_bound(xi, data, 0.16), CI_bound(xi, data, 0.84)
+    lower_05, upper_95 = CI_bound(xi, data, 0.05), CI_bound(xi, data, 0.95)
     CI_one_sigma = (
-        round(center_of_mass - one_sigma_bounds[0], 2),
-        round(one_sigma_bounds[1] - center_of_mass, 2),
+        round(center_of_mass - lower_16, 2),
+        round(upper_84 - center_of_mass, 2),
     )
     CI_two_sigma = (
-        round(center_of_mass - two_sigma_bounds[0], 2),
-        round(two_sigma_bounds[1] - center_of_mass, 2),
+        round(center_of_mass - lower_05, 2),
+        round(upper_95 - center_of_mass, 2),
     )
+    one_sigma_bounds = (lower_16, upper_84)
+    two_sigma_bounds = (lower_05, upper_95)
 
     return (
         {"x": xi, "y": data},
@@ -573,9 +615,9 @@ def gauss_agv_err(
 def plot_datapoints(
     data: dict[str, np.ndarray],
     bounds: dict[str, Any],
-    ax: plt.Axes | None = None,
+    ax: Axes | None = None,
     sample_name: str | None = None,
-) -> plt.Axes:
+) -> Axes:
     """
     Plot a probability density curve and annotate summary statistics.
 
@@ -658,7 +700,7 @@ def plot_Calibration_Estimates(
     fit_params: np.ndarray | list[list[float]],
     fit_error: np.ndarray | list[list[float]],
     Title: str = "Calibration Line Fits",
-) -> plt.Figure:
+) -> Figure:
     """
     Plot calibration slope and intercept estimate distributions.
 

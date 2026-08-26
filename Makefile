@@ -1,4 +1,4 @@
-.PHONY: help install sync test test-cov lint type-check format clean build publish publish-test docs
+.PHONY: help install sync test test-cov lint type-check format clean build release-check release publish publish-test docs
 
 help:
 	@echo "ODR Bootstrap Package Management"
@@ -14,13 +14,12 @@ help:
 	@echo "  make type-check     Check types with mypy"
 	@echo "  make format         Format code with ruff (in-place)"
 	@echo ""
-	@echo "Building & Publishing:"
+	@echo "Building & Releases:"
 	@echo "  make build          Build distribution (wheel + sdist)"
+	@echo "  make docs           Build Sphinx docs"
+	@echo "  make release-check  Run full validation before a release"
 	@echo "  make publish-test   Publish to TestPyPI"
-	@echo "  make publish        Publish to PyPI (requires GitHub release)"
-	@echo ""
-	@echo "Documentation:"
-	@echo "  make docs           Build Sphinx documentation"
+	@echo "  make publish        Publish to PyPI (uses uv publish)"
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  make clean          Remove build artifacts"
@@ -58,20 +57,25 @@ clean:
 build: clean
 	uv build
 
-publish-test: build
-	@echo "Publishing to TestPyPI..."
-	@echo "Note: This requires twine. Install with: pip install twine"
-	twine upload --repository testpypi dist/*
-	@echo "Verify at: https://test.pypi.org/project/odr-bootstrap/"
-
-publish: build
-	@echo "Publishing to PyPI..."
-	@echo "Note: This should be done via GitHub Actions on release"
-	@echo "Manual publish requires: pip install twine"
-	twine upload dist/*
-
 docs:
-	cd docs && make html
+	uv run --extra docs sphinx-build -b html docs/source docs/build/html
 	@echo "Documentation built: docs/build/html/index.html"
+
+release-check: clean
+	uv sync --all-extras
+	uv run pytest
+	uv run ruff check .
+	uv run mypy odr_bootstrap
+	uv run --extra docs sphinx-build -b html docs/source docs/build/html
+	uv build
+	@echo "Release validation complete."
+
+publish-test: release-check
+	@echo "Publishing to TestPyPI..."
+	uv publish --publish-url https://test.pypi.org/legacy/
+
+publish: release-check
+	@echo "Publishing to PyPI..."
+	uv publish
 
 .DEFAULT_GOAL := help

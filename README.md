@@ -39,8 +39,8 @@ pip install odr-bootstrap
 ### From source
 
 ```bash
-git clone https://github.com/whtowbin/odr-bootstrap.git
-cd odr-bootstrap
+git clone https://github.com/whtowbin/odr_bootstrap_package.git
+cd odr_bootstrap_package
 uv sync
 # or
 pip install -e .
@@ -229,7 +229,7 @@ If you use this package in research, please cite:
   title={ODR Bootstrap: Orthogonal Distance Regression with Bootstrap Resampling},
   author={Towbin, Henry},
   year={2025},
-  url={https://github.com/whtowbin/odr-bootstrap}
+  url={https://github.com/whtowbin/odr_bootstrap_package}
 }
 ```
 

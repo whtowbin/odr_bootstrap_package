@@ -5,7 +5,7 @@ Installation
 Prerequisites
 =============
 
-- **Python 3.10 or later** is required
+- **Python 3.11 or later** is required
 - Install with `uv <https://docs.astral.sh/uv/>`_ (recommended) or with `pip`
 
 With uv (recommended)

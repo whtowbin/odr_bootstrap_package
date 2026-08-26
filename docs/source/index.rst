@@ -34,18 +34,6 @@ SIMS (Secondary Ion Mass Spectrometry) calibration analysis. It is broadly appli
 types of analytical calibrations and uses of linear regressions. Bootstrapping ensures that the
 fits are not overly skewed by outliers.
 
-Features
-========
-
-✅ NumPy-style documentation for all functions  
-✅ Type hints for complete IDE support  
-✅ 22 comprehensive unit tests (100% pass rate, 97.6% coverage)  
-✅ Runnable example workflow with synthetic data  
-✅ Compatible with scipy 1.15+ (deprecated API updates handled)  
-✅ Zero-intercept fits with proper parameter handling  
-✅ Publication-ready calibration plots  
-✅ Continuous integration & automated testing  
-
 Getting Started
 ===============
 

@@ -20,6 +20,7 @@ from odr_bootstrap import (  # noqa: E402
 )
 
 OUTPUT_DIR = Path(__file__).resolve().parent
+REGRESSION_LINE_INTERVAL = 0.25
 
 
 def main() -> None:
@@ -68,11 +69,11 @@ def main() -> None:
         InitialGuess=[100, 10],
         Confidence_Bound=0.95,
         LineMax=11,
-        LineInterval=0.5,
+        LineInterval=REGRESSION_LINE_INTERVAL,
     )
 
-    conf_68 = Eval_Conf(all_params, Confidence_Bound=0.68, LineMax=11, LineInt=0.5)
-    conf_95 = Eval_Conf(all_params, Confidence_Bound=0.95, LineMax=11, LineInt=0.5)
+    conf_68 = Eval_Conf(all_params, Confidence_Bound=0.68, LineMax=11, LineInt=REGRESSION_LINE_INTERVAL)
+    conf_95 = Eval_Conf(all_params, Confidence_Bound=0.95, LineMax=11, LineInt=REGRESSION_LINE_INTERVAL)
 
     outlier_confidence_data, outlier_best_fit, outlier_points, outlier_params, _ = ODR_Bootstrap(
         x=x_outlier,
@@ -84,10 +85,10 @@ def main() -> None:
         InitialGuess=[100, 10],
         Confidence_Bound=0.95,
         LineMax=11,
-        LineInterval=0.5,
+        LineInterval=REGRESSION_LINE_INTERVAL,
     )
-    outlier_conf_68 = Eval_Conf(outlier_params, Confidence_Bound=0.68, LineMax=11, LineInt=0.5)
-    outlier_conf_95 = Eval_Conf(outlier_params, Confidence_Bound=0.95, LineMax=11, LineInt=0.5)
+    outlier_conf_68 = Eval_Conf(outlier_params, Confidence_Bound=0.68, LineMax=11, LineInt=REGRESSION_LINE_INTERVAL)
+    outlier_conf_95 = Eval_Conf(outlier_params, Confidence_Bound=0.95, LineMax=11, LineInt=REGRESSION_LINE_INTERVAL)
 
     print(f"   Best fit slope: {best_fit_params[0]:.2f}")
     print(f"   Best fit intercept: {best_fit_params[1]:.2f}")

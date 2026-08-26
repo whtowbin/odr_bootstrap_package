@@ -21,17 +21,18 @@ ODR Bootstrap Documentation
 What is ODR Bootstrap?
 ======================
 
-When fitting calibration curves to scientific data, measurement errors exist in both the 
-independent variable (x, e.g., concentration) and dependent variable (y, e.g., ion intensity). 
+When fitting calibration curves to scientific data, measurement errors exist in both the
+independent variable (x, e.g., concentration) and dependent variable (y, e.g., ion intensity).
 Ordinary least squares regression assumes errors only in y, leading to biased fits.
 
-**Orthogonal Distance Regression (ODR)** properly accounts for uncertainties in both x and y. 
-**Bootstrap resampling** estimates confidence intervals by repeatedly refitting the model to 
+**Orthogonal Distance Regression (ODR)** properly accounts for uncertainties in both x and y.
+**Bootstrap resampling** estimates confidence intervals by repeatedly refitting the model to
 random subsamples of the calibration data.
 
-This package combines these techniques for publication-ready uncertainty quantification in 
-`SIMS <https://en.wikipedia.org/wiki/Secondary_ion_mass_spectrometry>`_ (Secondary Ion Mass 
-Spectrometry) calibration analysis.
+This package combines these techniques for publication-ready uncertainty quantification in
+SIMS (Secondary Ion Mass Spectrometry) calibration analysis. It is broadly applicable to other
+types of analytical calibrations and uses of linear regressions. Bootstrapping ensures that the
+fits are not overly skewed by outliers.
 
 Features
 ========

@@ -5,9 +5,11 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/release/python-3110/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Orthogonal Distance Regression with Bootstrap Resampling for SIMS Calibration
+Orthogonal Distance Regression with Bootstrap Resampling for SIMS (Secondary Ion Mass Spectrometry) Calibration
 
-A Python package for robust calibration curve fitting with proper uncertainty quantification in both x and y measurements.
+A Python package for robust calibration curve fitting with proper uncertainty quantification in both x and y measurements. 
+
+
 
 ## Overview
 
@@ -17,7 +19,7 @@ When fitting calibration curves to scientific data, measurement errors exist in 
 
 **Orthogonal Distance Regression (ODR)** properly accounts for uncertainties in both x and y. **Bootstrap resampling** estimates confidence intervals by repeatedly refitting the model to random subsamples of the calibration data.
 
-This package combines these techniques for publication-ready uncertainty quantification in SIMS (Secondary Ion Mass Spectrometry) calibration analysis. It is broadly applicable to other types of analytical calibrations and uses of linear regressions. 
+This package combines these techniques for publication-ready uncertainty quantification in SIMS (Secondary Ion Mass Spectrometry) calibration analysis. It is broadly applicable to other types of analytical calibrations and uses of linear regressions. Bootstrapping ensures that the fits are not overly skewed by outliers.
 
 
 

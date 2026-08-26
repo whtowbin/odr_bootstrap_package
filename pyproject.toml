@@ -50,10 +50,10 @@ docs = [
 ]
 
 [project.urls]
-Repository = "https://github.com/whtowbin/odr-bootstrap"
-Issues = "https://github.com/whtowbin/odr-bootstrap/issues"
+Repository = "https://github.com/whtowbin/odr_bootstrap_package"
+Issues = "https://github.com/whtowbin/odr_bootstrap_package/issues"
 Documentation = "https://odr-bootstrap.readthedocs.io"
-Changelog = "https://github.com/whtowbin/odr-bootstrap/blob/main/CHANGELOG.md"
+Changelog = "https://github.com/whtowbin/odr_bootstrap_package/blob/main/CHANGELOG.md"
 
 [tool.hatch.version]
 path = "odr_bootstrap/__init__.py"

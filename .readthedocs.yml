@@ -20,9 +20,5 @@ formats:
   - pdf
   - epub
 
-# Index page configuration
-redirect_www: false
-
-# Exclude built docs output from source scanning
-# RTD v2 uses 'build' settings for os/tools and source configuration
-# rather than the old top-level exclude_patterns key.
+# Valid Read the Docs v2 configuration.
+# The old top-level redirect_www and exclude_patterns settings are not supported here.

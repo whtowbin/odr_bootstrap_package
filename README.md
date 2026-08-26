@@ -131,13 +131,19 @@ plt.show()
 
 ## Example Output
 
-The example script produces two useful figures for calibration analysis:
+The example script produces three useful figures for calibration analysis:
 
-### Calibration curve with bootstrap confidence band
+### Calibration curve with 68% and 95% bootstrap confidence bands
 
-![Calibration curve with bootstrap confidence interval](https://raw.githubusercontent.com/whtowbin/odr_bootstrap_package/main/calibration_curve.png)
+![Calibration curve with 68% and 95% bootstrap confidence intervals](https://raw.githubusercontent.com/whtowbin/odr_bootstrap_package/main/calibration_curve.png)
 
-This plot shows the fitted calibration line and the shaded bootstrap uncertainty region. It is useful for publication figures and for checking whether the model tracks the data well across the full concentration range.
+This single figure shows the fitted calibration line with both the narrower 68% interval and the broader 95% interval. It is useful for publication figures and for interpreting the precision of the calibration at different confidence levels.
+
+### Synthetic outlier sensitivity example
+
+![Synthetic calibration data with larger outliers and dual confidence bands](https://raw.githubusercontent.com/whtowbin/odr_bootstrap_package/main/calibration_curve_outlier.png)
+
+This second regression plot demonstrates how larger outliers affect the fit and broaden the uncertainty band, while also showing the 68% and 95% confidence envelopes in the same plot.
 
 ### Bootstrap parameter distributions
 
@@ -197,7 +203,8 @@ python example.py
 ```
 
 This generates:
-- `calibration_curve.png` - Fitted line with confidence band
+- `calibration_curve.png` - Fitted line with both 68% and 95% confidence bands
+- `calibration_curve_outlier.png` - Synthetic example with a larger outlier and dual confidence bands
 - `calibration_estimates.png` - Bootstrap parameter distributions
 
 ## API Reference

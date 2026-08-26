@@ -229,8 +229,8 @@ class TestPlottingFunctions(unittest.TestCase):
         # Generate confidence data
         slopes = np.random.normal(2.5, 0.1, 50)
         intercepts = np.random.normal(10, 0.5, 50)
-        fit_params = [np.array([s, i]) for s, i in zip(slopes, intercepts)]
-        self.confidence_df = Eval_Conf(fit_params, LineMax=6)
+        self.fit_params = [np.array([s, i]) for s, i in zip(slopes, intercepts)]
+        self.confidence_df = Eval_Conf(self.fit_params, LineMax=6)
 
     def test_plot_regression_returns_axes(self):
         """Test plot_regression returns matplotlib Axes."""
@@ -246,6 +246,41 @@ class TestPlottingFunctions(unittest.TestCase):
         ax = plot_regression(self.confidence_df, datapoints=datapoints)
         self.assertTrue(isinstance(ax, plt.Axes))
         plt.close()
+
+    def test_plot_regression_accepts_multiple_confidence_levels(self):
+        """Test plot_regression can overlay both 68% and 95% confidence bands."""
+        conf_68 = self.confidence_df.copy()
+        conf_95 = self.confidence_df.copy()
+        conf_95["neg_error_bound"] = conf_95["neg_error_bound"] - 0.25
+        conf_95["pos_error_bound"] = conf_95["pos_error_bound"] + 0.25
+
+        fig, ax = plt.subplots()
+        rendered = plot_regression(
+            [conf_68, conf_95],
+            ax=ax,
+            ecolor=["#93c5fd", "#1d4ed8"],
+            e_alpha=[0.2, 0.5],
+        )
+        self.assertTrue(isinstance(rendered, plt.Axes))
+        self.assertGreaterEqual(len(ax.collections), 2)
+        self.assertGreater(ax.get_xlim()[1], np.max(self.confidence_df.index.to_numpy()) * 1.05)
+
+        labels = [text.get_text() for text in ax.get_legend().get_texts()] if ax.get_legend() else []
+        self.assertIn("Best fit", labels)
+        self.assertIn("95% CI", labels)
+        self.assertIn("68% CI", labels)
+        self.assertEqual(len(labels), 3)
+        plt.close(fig)
+
+    def test_eval_conf_supports_custom_line_spacing_and_max(self):
+        """Test custom regression-grid spacing and max-length are accepted."""
+        conf = Eval_Conf(self.fit_params, LineMax=10.0, LineInt=0.25)
+        self.assertGreater(len(conf), 30)
+        self.assertAlmostEqual(conf.index[0], 0.0)
+        self.assertAlmostEqual(conf.index[-1], 10.0)
+
+        conf_alias = Eval_Conf(self.fit_params, line_max=10.0, line_interval=0.25)
+        np.testing.assert_allclose(conf["best_fit"].to_numpy(), conf_alias["best_fit"].to_numpy())
 
     def test_plot_datapoints_returns_axes(self):
         """Test plot_datapoints returns matplotlib Axes."""

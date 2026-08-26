@@ -24,7 +24,8 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.viewcode",
     "sphinx_autodoc_typehints",
-    "sphinx.ext.napoleon",  # Support NumPy-style docstrings
+    "sphinx.ext.napoleon",
+    "myst_parser",
 ]
 
 # AutoDoc settings
@@ -65,8 +66,8 @@ html_theme_options = {
 templates_path = ["_templates"]
 html_static_path = ["_static"]
 
-# Source file suffix
-source_suffix = ".rst"
+# Source file suffixes: support modern Markdown content alongside legacy RST.
+source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
 
 # Master doc
 master_doc = "index"
@@ -76,6 +77,7 @@ language = "en"
 
 # Highlighting
 pygments_style = "sphinx"
+myst_heading_anchors = 6
 
 # Suppress warnings
 suppress_warnings = ["ref.python"]

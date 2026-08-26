@@ -294,8 +294,8 @@ def slope_func(p: np.ndarray | list[float], x: np.ndarray | list[float]) -> np.n
 def Eval_Conf(
     Fit_Param: list[np.ndarray],
     Confidence_Bound: float = 0.95,
-    LineMax: int = 200,
-    LineInt: int = 1,
+    LineMax: int | float = 200,
+    LineInt: int | float = 1,
     **kwargs: Any,
 ) -> pd.DataFrame:
     """
@@ -309,9 +309,9 @@ def Eval_Conf(
     Confidence_Bound : float, optional
         Confidence level expressed as a fraction between 0 and 1.
         Default is 0.95.
-    LineMax : int, optional
+    LineMax : int or float, optional
         Maximum x-value for the evaluation grid. Default is 200.
-    LineInt : int, optional
+    LineInt : int or float, optional
         Step size for the evaluation grid. Default is 1.
 
     Returns
@@ -324,6 +324,16 @@ def Eval_Conf(
         - percent_error_neg
         - percent_error_pos
     """
+    if "line_max" in kwargs:
+        LineMax = kwargs["line_max"]
+    if "line_interval" in kwargs:
+        LineInt = kwargs["line_interval"]
+
+    if LineInt <= 0:
+        raise ValueError("LineInt must be positive.")
+    if LineMax < 0:
+        raise ValueError("LineMax must be non-negative.")
+
     first_param = np.asarray(Fit_Param[0], dtype=float)
     if len(first_param) > 2:
         raise ValueError(
@@ -335,7 +345,10 @@ def Eval_Conf(
         FitFunc = slope_func
 
     evaluated = []
-    x = np.arange(0, LineMax, LineInt)
+    num_steps = max(0, int(round(float(LineMax) / float(LineInt))))
+    x = np.linspace(0.0, float(LineMax), num_steps + 1)
+    if len(x) == 0:
+        x = np.array([0.0])
     for row in Fit_Param:
         evaluated.append(FitFunc(row, x))
 
@@ -343,7 +356,7 @@ def Eval_Conf(
     confidence_ints = []
     for _, col in BootStp_Samples.items():
         histrange = (np.nanmin(col), np.nanmax(col))
-        hist = np.histogram(col, bins=200, range=histrange)
+        hist = np.histogram(col, bins=400, range=histrange)
         conf_int = stats.rv_histogram(hist).interval(Confidence_Bound)
         confidence_ints.append(conf_int)
 
@@ -363,47 +376,115 @@ def Eval_Conf(
 
 
 def plot_regression(
-    confidence_df: pd.DataFrame,
+    confidence_df: pd.DataFrame | list[pd.DataFrame],
     datapoints: pd.DataFrame | None = None,
-    LineMax: int = 200,
-    LineInt: int = 1,
+    LineMax: int | float = 200,
+    LineInt: int | float = 1,
     ax: Axes | None = None,
-    ecolor: str = "r",
-    line_color: str = "b",
+    ecolor: str | list[str] = "r",
+    line_color: str | list[str] = "b",
     sigma: int = 2,
-    e_alpha: float = 0.5,
+    e_alpha: float | list[float] = 0.5,
     **kwargs: Any,
 ) -> Axes:
     """
-    Plot a best-fit regression line and its bootstrap confidence band.
+    Plot a best-fit regression line with one or more shaded confidence bands.
 
     Parameters
     ----------
-    confidence_df : pandas.DataFrame
+    confidence_df : pandas.DataFrame or list of pandas.DataFrame
         Output from `Eval_Conf` with columns `best_fit`, `neg_error_bound`, and
-        `pos_error_bound`.
+        `pos_error_bound`. A list overlays multiple confidence intervals on the
+        same regression line.
     datapoints : pandas.DataFrame, optional
         DataFrame containing columns `x`, `y`, `xerr`, and `yerr`.
-    LineMax : int, optional
-        Accepted for compatibility but not used in this function.
-    LineInt : int, optional
-        Accepted for compatibility but not used in this function.
     ax : matplotlib.axes.Axes, optional
         Axis object to draw on. If None, the current axis is used.
-    ecolor : str, optional
-        Confidence band color. Default is 'r'.
-    line_color : str, optional
-        Best-fit line color. Default is 'b'.
-    sigma : int, optional
-        Ignored in the current implementation.
-    e_alpha : float, optional
-        Alpha transparency for the confidence band. Default is 0.5.
+    ecolor : str or list of str, optional
+        Confidence-band colors. In list form, the first entry is the 68% band
+        and the second is the 95% band.
+    line_color : str or list of str, optional
+        Best-fit line color(s). A single value colors the line uniformly.
+    e_alpha : float or list of float, optional
+        Transparency for the confidence bands.
 
     Returns
     -------
     matplotlib.axes.Axes
         Axis containing the regression plot.
     """
+    if isinstance(confidence_df, list):
+        if not confidence_df:
+            raise ValueError("confidence_df must contain at least one DataFrame.")
+
+        ax = ax if ax is not None else plt.gca()
+        band_colors = [ecolor] * len(confidence_df) if isinstance(ecolor, str) else list(ecolor)
+        band_alphas = [e_alpha] * len(confidence_df) if isinstance(e_alpha, float) else list(e_alpha)
+        line_colors = [line_color] * len(confidence_df) if isinstance(line_color, str) else list(line_color)
+
+        base_conf = confidence_df[0]
+        x_values = base_conf["best_fit"].index
+        if datapoints is not None:
+            x_values = np.asarray(datapoints["x"], dtype=float)
+
+        if len(confidence_df) >= 2:
+            conf_95 = confidence_df[0]
+            conf_68 = confidence_df[1]
+            x = conf_95["neg_error_bound"].index
+            ax.fill_between(
+                x,
+                conf_95["neg_error_bound"],
+                conf_95["pos_error_bound"],
+                color=band_colors[0],
+                alpha=band_alphas[0],
+                linewidth=0,
+                label="95% CI",
+            )
+            ax.fill_between(
+                x,
+                conf_68["neg_error_bound"],
+                conf_68["pos_error_bound"],
+                color=band_colors[1 % len(band_colors)],
+                alpha=band_alphas[1 % len(band_alphas)],
+                linewidth=0,
+                label="68% CI",
+            )
+            best_fit_color = line_colors[0] if line_colors else "#0f766e"
+            line_kwargs = dict(kwargs)
+            line_kwargs.setdefault("linewidth", 2.0)
+            ax.plot(x, conf_95["best_fit"], color=best_fit_color, label="Best fit", **line_kwargs)
+        elif len(confidence_df) == 1:
+            conf = confidence_df[0]
+            x = conf["neg_error_bound"].index
+            ax.fill_between(x, conf["neg_error_bound"], conf["pos_error_bound"], color=band_colors[0], alpha=band_alphas[0], linewidth=0, label="95% CI")
+            best_fit_color = line_colors[0] if line_colors else "#0f766e"
+            line_kwargs = dict(kwargs)
+            line_kwargs.setdefault("linewidth", 2.0)
+            ax.plot(x, conf["best_fit"], color=best_fit_color, label="Best fit", **line_kwargs)
+
+        if datapoints is not None:
+            ax.errorbar(
+                x=datapoints["x"],
+                y=datapoints["y"],
+                yerr=datapoints["yerr"],
+                xerr=datapoints["xerr"],
+                marker=".",
+                fmt="g",
+                linestyle="none",
+                capsize=5,
+                markeredgewidth=1,
+                markersize=10,
+                label=None,
+                **kwargs,
+            )
+
+        x_values_arr = np.asarray(list(x_values), dtype=float)
+        x_max = float(np.nanmax(x_values_arr)) if len(x_values_arr) else 0.0
+        x_min = float(np.nanmin(x_values_arr)) if len(x_values_arr) else 0.0
+        ax.set_xlim(left=min(x_min, 0.0), right=x_max * 1.05 + 1e-9)
+        ax.legend(loc="best", frameon=True)
+        return ax
+
     BestFitLine = confidence_df["best_fit"]
     NegBound = confidence_df["neg_error_bound"]
     PosBound = confidence_df["pos_error_bound"]
@@ -415,7 +496,11 @@ def plot_regression(
     ax.fill_between(x, NegBound, PosBound, color=ecolor, alpha=e_alpha)
     ax.plot(x, BestFitLine, color=line_color, **kwargs)
 
+    x_max = float(np.nanmax(np.asarray(list(x), dtype=float))) if len(x) else 0.0
     if datapoints is not None:
+        data_x = np.asarray(datapoints["x"], dtype=float)
+        if len(data_x):
+            x_max = max(x_max, float(np.nanmax(data_x)))
         ax.errorbar(
             x=datapoints["x"],
             y=datapoints["y"],
@@ -431,6 +516,7 @@ def plot_regression(
             **kwargs,
         )
 
+    ax.set_xlim(left=min(float(np.nanmin(np.asarray(list(x), dtype=float))), 0.0), right=x_max * 1.05 + 1e-9)
     return ax
 
 

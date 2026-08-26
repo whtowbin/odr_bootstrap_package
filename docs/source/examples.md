@@ -14,24 +14,34 @@ The package includes a complete runnable example:
 
 This generates:
 
-- **calibration_curve.png** - Best-fit line with 95% confidence band
+- **calibration_curve.png** - Best-fit line with both 68% and 95% confidence bands
+- **calibration_curve_outlier.png** - Synthetic outlier example with a larger anomalous point
 - **calibration_estimates.png** - Bootstrap parameter distributions
 
 Example Output
 ==============
 
-The example writes two publication-quality figures from the same synthetic calibration dataset. Together they show both the fitted calibration relationship and the uncertainty in the fitted parameters.
+The example writes three publication-quality figures from synthetic calibration datasets. Together they show the fitted calibration relationship, the effect of a larger outlier on the uncertainty bands, and the distribution of the fitted slope and intercept estimates.
 
-The first plot shows the best-fit line with a bootstrap confidence band, while the second summarizes the distribution of the slope and intercept estimates across many resampled fits.
+The first plot shows the best-fit line with both the 68% and 95% bootstrap confidence bands in one figure, while the second demonstrates larger outliers and how they broaden the uncertainty envelope in a single plot. The third summarizes the distribution of the slope and intercept estimates across many resampled fits.
 
 Calibration Fit
 ---------------
 
 .. figure:: _static/calibration_curve.png
-   :alt: Calibration curve with bootstrap confidence interval
+   :alt: Calibration curve with 68% and 95% bootstrap confidence intervals
    :width: 100%
 
-   The fitted regression line follows the expected linear trend while the shaded band captures the uncertainty estimated by bootstrap resampling.
+   The fitted regression line follows the expected linear trend while the narrower 68% band and broader 95% band capture the uncertainty estimated by bootstrap resampling.
+
+Outlier Sensitivity
+-------------------
+
+.. figure:: _static/calibration_curve_outlier.png
+   :alt: Synthetic calibration curve with a larger outlier and dual confidence intervals
+   :width: 100%
+
+   Larger outliers widen the uncertainty envelope and shift the fitted trend, which helps illustrate the value of robust calibration checks and careful outlier review.
 
 Parameter Uncertainty
 ---------------------
@@ -46,7 +56,8 @@ What to look for in these figures
 ---------------------------------
 
 - The regression fit should align closely with the measured calibration points.
-- The confidence band should widen as the uncertainty in the fit increases.
+- The 68% band should be narrower than the 95% band, reflecting the larger confidence range at the 95% level.
+- The outlier example should show a broader uncertainty band and a larger spread in the fitted parameters.
 - The parameter histograms should be centered near the best-fit slope and intercept values.
 - Larger resample counts usually produce smoother, more stable distributions.
 
@@ -70,10 +81,13 @@ The console output is structured as follows:
       Bootstrap resamples computed: 2000
       Data points after NaN removal: 6
 
-   [3/4] Plotting regression with confidence intervals...
+   [3/5] Plotting regression with 68% and 95% confidence intervals...
       ✓ Saved: calibration_curve.png
 
-   [4/4] Plotting calibration estimate distributions...
+   [4/5] Plotting outlier sensitivity example...
+      ✓ Saved: calibration_curve_outlier.png
+
+   [5/5] Plotting calibration estimate distributions...
       ✓ Saved: calibration_estimates.png
 
    ======================================================================

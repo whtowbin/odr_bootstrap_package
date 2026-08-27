@@ -4,13 +4,10 @@ ODR Bootstrap Documentation
 
 **Orthogonal Distance Regression with Bootstrap Resampling for SIMS Calibration**
 
-|tests| |coverage| |pypi| |license|
+|tests| |pypi| |license|
 
 .. |tests| image:: https://github.com/whtowbin/odr_bootstrap_package/actions/workflows/tests.yml/badge.svg
    :target: https://github.com/whtowbin/odr_bootstrap_package/actions/workflows/tests.yml
-
-.. |coverage| image:: https://codecov.io/gh/whtowbin/odr_bootstrap_package/branch/main/graph/badge.svg
-   :target: https://codecov.io/gh/whtowbin/odr_bootstrap_package
 
 .. |pypi| image:: https://img.shields.io/pypi/v/odr-bootstrap.svg
    :target: https://pypi.org/project/odr-bootstrap/
@@ -66,6 +63,7 @@ Development
 Project Links
 =============
 
+- **Documentation Home**: `Read the Docs <https://odr-bootstrap-package.readthedocs.io/en/latest/index.html>`_
 - **Source Code**: `GitHub <https://github.com/whtowbin/odr_bootstrap_package>`_
 - **Issue Tracker**: `GitHub Issues <https://github.com/whtowbin/odr_bootstrap_package/issues>`_
 - **PyPI**: `odr-bootstrap <https://pypi.org/project/odr-bootstrap/>`_

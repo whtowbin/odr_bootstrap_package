@@ -118,6 +118,9 @@ To use ODR Bootstrap with your own data:
 2. Run the fit.
 
    ```python
+   ls_slope, ls_intercept = np.polyfit(x_standards, y_measured, 1)
+   initial_guess = [ls_slope, ls_intercept]
+
    confidence_data, params, points, all_params, _ = ODR_Bootstrap(
        x=x_standards,
        y=y_measured,
@@ -125,6 +128,7 @@ To use ODR Bootstrap with your own data:
        y_err=y_uncertainty,
        resample_draws=5000,
        InterceptFit=True,
+       InitialGuess=initial_guess,
        Confidence_Bound=0.95,
    )
    ```
@@ -151,7 +155,7 @@ To use ODR Bootstrap with your own data:
 
 - Check for outliers in your data.
 - Verify uncertainty estimates are realistic.
-- Try different InitialGuess values.
+- Start from a least-squares estimate via `np.polyfit(x, y, 1)` and refine from there.
 - Increase resample_draws for better bootstrap estimates.
 
 ### Problem: Slow execution

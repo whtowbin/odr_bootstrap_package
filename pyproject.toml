@@ -52,7 +52,7 @@ docs = [
 [project.urls]
 Repository = "https://github.com/whtowbin/odr_bootstrap_package"
 Issues = "https://github.com/whtowbin/odr_bootstrap_package/issues"
-Documentation = "https://odr-bootstrap.readthedocs.io"
+Documentation = "https://odr-bootstrap-package.readthedocs.io/en/latest/index.html"
 Changelog = "https://github.com/whtowbin/odr_bootstrap_package/blob/main/CHANGELOG.md"
 
 [tool.hatch.version]

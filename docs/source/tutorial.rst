@@ -26,6 +26,10 @@ The simplest use case: fit a linear calibration curve with confidence intervals.
    x_uncertainty = np.array([0.01, 0.05, 0.1, 0.2, 0.5, 1.0])
    y_uncertainty = np.array([20, 30, 50, 60, 100, 150])
 
+   # Estimate a reasonable starting point from a simple least-squares fit
+   ls_slope, ls_intercept = np.polyfit(x_standards, y_measured, 1)
+   initial_guess = [ls_slope, ls_intercept]
+
    # Run bootstrap with 2000 resamples
    confidence_data, best_fit_params, points, all_params, subsamples = ODR_Bootstrap(
        x=x_standards,
@@ -34,7 +38,7 @@ The simplest use case: fit a linear calibration curve with confidence intervals.
        y_err=y_uncertainty,
        resample_draws=2000,
        InterceptFit=True,
-       InitialGuess=[100, 10],
+       InitialGuess=initial_guess,
        Confidence_Bound=0.95,
        LineMax=11,
        LineInterval=0.5,
@@ -179,6 +183,9 @@ Compute multiple confidence intervals on the same fit:
    from odr_bootstrap import Bootstrap_fit, Eval_Conf
 
    # Generate bootstrap samples
+   ls_slope, ls_intercept = np.polyfit(x_standards, y_measured, 1)
+   initial_guess = [ls_slope, ls_intercept]
+
    params, subsamples = Bootstrap_fit(
        x=x_standards,
        y=y_measured,
@@ -186,7 +193,7 @@ Compute multiple confidence intervals on the same fit:
        y_err=y_uncertainty,
        resample_draws=2000,
        InterceptFit=True,
-       InitialGuess=[100, 10],
+       InitialGuess=initial_guess,
    )
 
    # Evaluate at different confidence levels

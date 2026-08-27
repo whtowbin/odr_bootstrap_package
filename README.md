@@ -49,11 +49,12 @@ pip install -e .
 
 ## Documentation
 
-Full documentation is available at [Read the Docs](https://odr-bootstrap.readthedocs.io).
+Full documentation is available at [Read the Docs](https://odr-bootstrap-package.readthedocs.io/en/latest/index.html).
+
 
 For quick reference, see:
-- [API Reference](https://odr-bootstrap.readthedocs.io/en/latest/api.html)
-- [Tutorial & Examples](https://odr-bootstrap.readthedocs.io/en/latest/tutorial.html)
+- [API Reference](https://odr-bootstrap-package.readthedocs.io/en/latest/api.html)
+- [Tutorial & Examples](https://odr-bootstrap-package.readthedocs.io/en/latest/tutorial.html)
 - [Examples Directory](./examples)
 
 ## Quick Start
@@ -69,6 +70,10 @@ y_intensity = np.array([45, 200, 350, 700, 1450])      # Ion counts
 x_uncertainty = np.array([0.01, 0.05, 0.1, 0.2, 0.5]) # Measurement errors in x
 y_uncertainty = np.array([5, 20, 35, 60, 120])         # Measurement errors in y
 
+# Estimate a reasonable starting point from a simple least-squares fit
+ls_slope, ls_intercept = np.polyfit(x_standards, y_intensity, 1)
+initial_guess = [ls_slope, ls_intercept]
+
 # Run ODR bootstrap with 2000 resamples
 confidence_data, best_fit_params, points, all_params, subsamples = ODR_Bootstrap(
     x=x_standards,
@@ -77,7 +82,7 @@ confidence_data, best_fit_params, points, all_params, subsamples = ODR_Bootstrap
     y_err=y_uncertainty,
     resample_draws=2000,
     InterceptFit=True,
-    InitialGuess=[250, 10],
+    InitialGuess=initial_guess,
     Confidence_Bound=0.95,
     LineMax=6,
 )

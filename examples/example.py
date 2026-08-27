@@ -40,10 +40,14 @@ def main() -> None:
     x_uncertainty = np.array([0.01, 0.05, 0.1, 0.2, 0.5, 1.0])
     y_uncertainty = np.array([20, 30, 50, 60, 100, 150])
 
+    ls_slope, ls_intercept = np.polyfit(x_standards, y_measured, 1)
+    initial_guess = [ls_slope, ls_intercept]
+
     print(f"   Standards: {x_standards}")
     print(f"   Measurements: {y_measured}")
     print(f"   X uncertainties: {x_uncertainty}")
     print(f"   Y uncertainties: {y_uncertainty}")
+    print(f"   Least-squares initial guess: slope={ls_slope:.3f}, intercept={ls_intercept:.3f}")
 
     x_outlier = np.concatenate([x_standards, [8.5, 6.3]])
     y_outlier = np.concatenate([
@@ -66,7 +70,7 @@ def main() -> None:
         y_err=y_uncertainty,
         resample_draws=2000,
         InterceptFit=True,
-        InitialGuess=[100, 10],
+        InitialGuess=initial_guess,
         Confidence_Bound=0.95,
         LineMax=11,
         LineInterval=REGRESSION_LINE_INTERVAL,
@@ -75,6 +79,7 @@ def main() -> None:
     conf_68 = Eval_Conf(all_params, Confidence_Bound=0.68, LineMax=11, LineInt=REGRESSION_LINE_INTERVAL)
     conf_95 = Eval_Conf(all_params, Confidence_Bound=0.95, LineMax=11, LineInt=REGRESSION_LINE_INTERVAL)
 
+    outlier_initial_guess = np.polyfit(x_outlier, y_outlier, 1)
     outlier_confidence_data, outlier_best_fit, outlier_points, outlier_params, _ = ODR_Bootstrap(
         x=x_outlier,
         y=y_outlier,
@@ -82,7 +87,7 @@ def main() -> None:
         y_err=y_outlier_err,
         resample_draws=2000,
         InterceptFit=True,
-        InitialGuess=[100, 10],
+        InitialGuess=list(outlier_initial_guess),
         Confidence_Bound=0.95,
         LineMax=11,
         LineInterval=REGRESSION_LINE_INTERVAL,

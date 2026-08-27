@@ -77,6 +77,107 @@ plt.savefig("calibration_curve.png", dpi=150)
 plt.show()
 ```
 
+### Applying the calibration to new measurements
+
+Once the calibration is fitted, you can use the bootstrap-derived uncertainty to estimate unknown values from fresh data in the same way as a standard analytical calibration:
+
+```python
+from odr_bootstrap import apply_calibration
+
+# Unknown x values to convert into measured y values
+unknown_x = np.array([0.25, 0.75, 3.0])
+calibration_results = apply_calibration(
+    unknown_x,
+    all_params,
+    fit_intercept=True,
+    variable="x",
+    confidence_levels=(0.68, 0.95),
+)
+
+print(calibration_results[["input_value", "best_fit", "median", "neg_ci_68", "pos_ci_68", "neg_ci_95", "pos_ci_95"]])
+```
+
+If you already know the measured signal and want to back-calculate the corresponding concentration, use the inverse mode:
+
+```python
+from odr_bootstrap import apply_calibration_y
+
+unknown_signal = np.array([120.0, 450.0, 900.0])
+concentration_estimates = apply_calibration_y(
+    unknown_signal,
+    all_params,
+    fit_intercept=True,
+    confidence_levels=(68, 95),
+)
+print(concentration_estimates)
+```
+
+The helper accepts scalar or array-like inputs, defaults to x-input calibration, and returns a DataFrame containing the best-fit value, median estimate, and one or more confidence intervals.
+
+A common analytical-calibration workflow is to convert an unknown ion intensity into a concentration in ppm. The example below uses the fitted bootstrap calibration and renders the result as a Great Tables summary.
+
+The generated HTML table is produced by the example script and saved to [docs/source/_static/unknown_concentrations.html](docs/source/_static/unknown_concentrations.html). Because markdown does not execute Python, the table is not rendered inline in the README itself; it is generated as an HTML artifact from the example script.
+
+```python
+import numpy as np
+from great_tables import GT, md
+from odr_bootstrap import apply_calibration_y
+
+unknown_counts = np.array([150.0, 420.0, 910.0, 1600.0])
+unknown_conc = apply_calibration_y(
+    unknown_counts,
+    all_params,
+    fit_intercept=True,
+    confidence_levels=(0.68, 0.95),
+)
+
+unknown_conc = unknown_conc.rename(
+    columns={
+        "input_value": "Ion intensity (counts)",
+        "best_fit": "Estimated concentration (ppm)",
+        "median": "Median concentration (ppm)",
+        "neg_ci_68": "Lower 68% CI (ppm)",
+        "pos_ci_68": "Upper 68% CI (ppm)",
+        "neg_ci_95": "Lower 95% CI (ppm)",
+        "pos_ci_95": "Upper 95% CI (ppm)",
+    }
+)
+unknown_conc.insert(0, "Sample ID", [f"Unknown {i + 1}" for i in range(len(unknown_conc))])
+
+summary_table = (
+    GT(unknown_conc, rowname_col="Sample ID")
+    .tab_header(
+        title="Unknown sample concentrations",
+        subtitle="Ion intensity to concentration estimates using the bootstrap calibration",
+    )
+    .fmt_number(
+        columns=[
+            "Ion intensity (counts)",
+            "Estimated concentration (ppm)",
+            "Median concentration (ppm)",
+            "Lower 68% CI (ppm)",
+            "Upper 68% CI (ppm)",
+            "Lower 95% CI (ppm)",
+            "Upper 95% CI (ppm)",
+        ],
+        decimals=2,
+    )
+    .tab_source_note(
+        source_note=md("Calibration generated with ODR Bootstrap and propagated uncertainty.")
+    )
+)
+
+print(summary_table.as_raw_html())
+```
+
+To regenerate the table from source, run:
+
+```bash
+uv run --extra examples python examples/example.py
+```
+
+This produces a compact publication-ready table showing each unknown ion intensity, the best-fit concentration estimate, and both the 68% and 95% confidence intervals.
+
 ### Visualising parameter uncertainty
 
 ```python

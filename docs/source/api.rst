@@ -30,6 +30,12 @@ Confidence Interval Evaluation
 .. autofunction:: odr_bootstrap.evaluate_confidence
    :noindex:
 
+.. autofunction:: odr_bootstrap.apply_calibration
+   :noindex:
+
+.. autofunction:: odr_bootstrap.apply_calibration_y
+   :noindex:
+
 Statistical Functions
 ---------------------
 

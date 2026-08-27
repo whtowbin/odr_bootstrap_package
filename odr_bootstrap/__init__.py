@@ -6,6 +6,8 @@ quantification in both x and y measurements.
 """
 
 from .core import (
+    apply_calibration,
+    apply_calibration_y,
     bootstrap_odr_fit,
     evaluate_confidence,
     fit_defaults,
@@ -28,6 +30,8 @@ __all__ = [
     "fit_odr_linear_debug",
     "bootstrap_odr_fit",
     "evaluate_confidence",
+    "apply_calibration",
+    "apply_calibration_y",
     "plot_regression",
     "odr_bootstrap",
     "gaussian_aggregate",

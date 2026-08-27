@@ -1,4 +1,4 @@
-.PHONY: help install sync test test-cov test-install test-all-versions lint type-check format clean build release-check prepare-release release publish publish-test docs
+.PHONY: help install sync test test-cov test-install test-all-versions lint type-check format clean build release-check prepare-release release publish publish-test docs regen-examples
 
 help:
 	@echo "ODR Bootstrap Package Management"
@@ -18,7 +18,8 @@ help:
 	@echo ""
 	@echo "Building & Releases:"
 	@echo "  make build          Build distribution (wheel + sdist)"
-	@echo "  make docs           Build Sphinx docs"
+	@echo "  make docs           Build Sphinx docs (regenerates example assets first)"
+	@echo "  make regen-examples Regenerate calibration plots and HTML tables"
 	@echo "  make release-check  Run full validation before a release"
 	@echo "  make prepare-release  Rebuild examples/docs/images, run tests, and build dist before pushing"
 	@echo "  make prepare-release BUMP=patch   Same, plus bump version (patch|minor|major) and uv.lock"
@@ -66,7 +67,11 @@ clean:
 build: clean
 	uv build
 
-docs:
+regen-examples:
+	uv run --extra examples python examples/example.py
+	@echo "Example artifacts regenerated: calibration plots and unknown_concentrations.html"
+
+docs: regen-examples
 	uv run --extra docs sphinx-build -b html docs/source docs/build/html
 	@echo "Documentation built: docs/build/html/index.html"
 
@@ -76,6 +81,7 @@ release-check: clean
 	uv run pytest -m install tests/test_installation.py --no-cov
 	uv run ruff check .
 	uv run mypy odr_bootstrap
+	$(MAKE) regen-examples
 	uv run --extra docs sphinx-build -b html docs/source docs/build/html
 	uv build
 	@echo "Release validation complete."

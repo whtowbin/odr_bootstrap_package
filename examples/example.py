@@ -9,11 +9,18 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
+try:
+    from great_tables import GT, md
+except ModuleNotFoundError:  # pragma: no cover - optional example dependency
+    GT = None
+    md = None
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from odr_bootstrap import (  # noqa: E402
+    apply_calibration_y,
     evaluate_confidence,
     fit_defaults,
     gaussian_aggregate,
@@ -264,6 +271,55 @@ def main() -> None:
     print(f"\nBootstrap Statistics (N={len(all_params)-1}):")
     print(f"  Slope mean:     {slope_mean:.2f} ± {slope_std:.2f}")
     print(f"  Intercept mean: {intercept_mean:.2f} ± {intercept_std:.2f}")
+
+    unknown_counts = np.array([145.0, 430.0, 910.0, 1600.0])
+    unknown_estimates = apply_calibration_y(
+        unknown_counts,
+        all_params,
+        fit_intercept=True,
+        confidence_levels=(0.68, 0.95),
+    )
+    unknown_estimates = unknown_estimates.rename(
+        columns={
+            "input_value": "Ion intensity (counts)",
+            "best_fit": "Estimated concentration (ppm)",
+            "median": "Median concentration (ppm)",
+            "neg_ci_68": "Lower 68% CI (ppm)",
+            "pos_ci_68": "Upper 68% CI (ppm)",
+            "neg_ci_95": "Lower 95% CI (ppm)",
+            "pos_ci_95": "Upper 95% CI (ppm)",
+        }
+    )
+    unknown_estimates.insert(0, "Sample ID", [f"Unknown {idx + 1}" for idx in range(len(unknown_estimates))])
+
+    if GT is not None and md is not None:
+        page = (
+            GT(unknown_estimates, rowname_col="Sample ID")
+            .tab_header(
+                title="Unknown sample concentrations",
+                subtitle="Ion intensity to concentration estimates from the bootstrap calibration",
+            )
+            .fmt_number(
+                columns=[
+                    "Ion intensity (counts)",
+                    "Estimated concentration (ppm)",
+                    "Median concentration (ppm)",
+                    "Lower 68% CI (ppm)",
+                    "Upper 68% CI (ppm)",
+                    "Lower 95% CI (ppm)",
+                    "Upper 95% CI (ppm)",
+                ],
+                decimals=2,
+            )
+            .tab_source_note(
+                source_note=md("Interpolation performed using the ODR Bootstrap fit and uncertainty propagation.")
+            )
+        )
+        html = page.as_raw_html()
+        html_path = OUTPUT_DIR / "unknown_concentrations.html"
+        html_path.write_text(html, encoding="utf-8")
+        DOCS_STATIC_DIR.joinpath("unknown_concentrations.html").write_text(html, encoding="utf-8")
+        print(f"   ✓ Saved: {html_path}")
 
 
 if __name__ == "__main__":

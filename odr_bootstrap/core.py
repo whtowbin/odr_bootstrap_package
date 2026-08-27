@@ -45,7 +45,7 @@ April 2025:
   - Updated deprecated np.trapz to np.trapezoid for scipy 1.15+ compatibility.
 """
 
-from typing import Any
+from typing import Any, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -489,6 +489,307 @@ def evaluate_confidence(
     ) / np.abs(results["best_fit"])
 
     return results
+
+
+def _validate_confidence_levels(confidence_levels: Sequence[float] | float) -> tuple[float, ...]:
+    """Normalize confidence levels to fractions in the open interval (0, 1)."""
+    if isinstance(confidence_levels, (int, float)):
+        levels = [float(confidence_levels)]
+    else:
+        levels = [float(level) for level in confidence_levels]
+
+    if not levels:
+        raise ValueError("At least one confidence level must be provided.")
+
+    normalized = []
+    for level in levels:
+        if not np.isfinite(level):
+            raise ValueError(f"Confidence level {level!r} is not finite.")
+        value = level / 100.0 if level > 1.0 else level
+        if not 0.0 < value < 1.0:
+            raise ValueError(
+                "Confidence levels must be between 0 and 1, or between 1 and 100 percent."
+            )
+        if value not in normalized:
+            normalized.append(value)
+
+    return tuple(sorted(normalized))
+
+
+def _fit_polynomial_surface(
+    x: np.ndarray,
+    y: np.ndarray,
+    max_order: int = 5,
+    tolerance: float = 0.05,
+) -> tuple[np.ndarray, int]:
+    """Choose the lowest-order polynomial within 5% RMSE of the best fit."""
+    x_arr = np.asarray(x, dtype=float)
+    y_arr = np.asarray(y, dtype=float)
+    valid = np.isfinite(x_arr) & np.isfinite(y_arr)
+    x_arr = x_arr[valid]
+    y_arr = y_arr[valid]
+
+    if len(x_arr) < 2:
+        raise ValueError("At least 2 finite points are required to fit a polynomial surface.")
+
+    max_order = max(1, min(int(max_order), len(x_arr) - 1))
+    best_rmse = np.inf
+    best_coeffs = None
+    best_order = 1
+
+    for order in range(1, max_order + 1):
+        coeffs = np.polyfit(x_arr, y_arr, deg=order)
+        prediction = np.polyval(coeffs, x_arr)
+        rmse = float(np.sqrt(np.mean((prediction - y_arr) ** 2)))
+        if rmse < best_rmse:
+            best_rmse = rmse
+            best_coeffs = coeffs
+            best_order = order
+
+    if best_coeffs is None:
+        raise ValueError("Unable to fit a polynomial surface to the provided data.")
+
+    for order in range(1, max_order + 1):
+        coeffs = np.polyfit(x_arr, y_arr, deg=order)
+        prediction = np.polyval(coeffs, x_arr)
+        rmse = float(np.sqrt(np.mean((prediction - y_arr) ** 2)))
+        if rmse <= best_rmse * (1.0 + tolerance):
+            return coeffs, order
+
+    return best_coeffs, best_order
+
+
+def _evaluate_model_parameter_vector(
+    params: np.ndarray | list[float],
+    x: np.ndarray | list[float],
+    fit_intercept: bool = True,
+) -> np.ndarray:
+    """Evaluate the fitted calibration model at x values."""
+    params_arr = np.asarray(params, dtype=float)
+    x_arr = np.asarray(x, dtype=float)
+    if fit_intercept:
+        if len(params_arr) != 2:
+            raise ValueError("Intercept models require exactly two parameters: slope and intercept.")
+        return linear_with_intercept(params_arr, x_arr)
+    if len(params_arr) != 1:
+        raise ValueError("Zero-intercept models require exactly one parameter: slope.")
+    return linear_through_origin(params_arr, x_arr)
+
+
+def _invert_model_parameter_vector(
+    params: np.ndarray | list[float],
+    y: np.ndarray | list[float],
+    fit_intercept: bool = True,
+) -> np.ndarray:
+    """Invert the calibration model to solve x values from y values."""
+    params_arr = np.asarray(params, dtype=float)
+    y_arr = np.asarray(y, dtype=float)
+    if fit_intercept:
+        if len(params_arr) != 2:
+            raise ValueError("Intercept models require exactly two parameters: slope and intercept.")
+        slope = float(params_arr[0])
+        intercept = float(params_arr[1])
+        if np.isclose(slope, 0.0):
+            raise ValueError("Unable to invert a calibration with a zero slope.")
+        return (y_arr - intercept) / slope
+    if len(params_arr) != 1:
+        raise ValueError("Zero-intercept models require exactly one parameter: slope.")
+    slope = float(params_arr[0])
+    if np.isclose(slope, 0.0):
+        raise ValueError("Unable to invert a calibration with a zero slope.")
+    return y_arr / slope
+
+
+def apply_calibration(
+    values: float | np.ndarray | list[float],
+    fit_params: Sequence[np.ndarray | list[float]],
+    fit_intercept: bool = True,
+    variable: str = "x",
+    confidence_levels: Sequence[float] | float = (0.68, 0.95),
+    line_max: int | float | None = None,
+    line_interval: int | float | None = None,
+    max_poly_order: int = 5,
+) -> pd.DataFrame:
+    """Apply a fitted calibration model to new measurements.
+
+    This function accepts either x or y values for unknowns and returns the
+    corresponding calibrated estimate, median estimate, and positive/negative
+    confidence bounds in a pandas DataFrame.
+
+    Parameters
+    ----------
+    values : float or array-like
+        New measurement(s) to calibrate. By default the input is interpreted as
+        x values; pass ``variable='y'`` to interpret them as y values.
+    fit_params : sequence of array-like
+        Bootstrap parameter vectors from a calibration fit. The first element is
+        treated as the best-fit parameter vector, and the remainder are bootstrap
+        realizations used to estimate sampling uncertainty.
+    fit_intercept : bool, optional
+        Whether the original fit included an intercept. Default is True.
+    variable : {"x", "y"}, optional
+        Which measurement variable is supplied. Default is "x".
+    confidence_levels : float or sequence of float, optional
+        Confidence intervals to report, expressed either as fractions in (0, 1)
+        or as percentages (e.g. 68, 95). Default is (0.68, 0.95).
+    line_max : float, optional
+        Maximum value used to build the evaluation grid for the confidence
+        surface. When omitted, it is inferred from the provided values.
+    line_interval : float, optional
+        Step size used to build the evaluation grid. When omitted, it is
+        estimated from ``line_max``.
+    max_poly_order : int, optional
+        Maximum polynomial degree to consider when fitting the confidence
+        surface. Default is 5.
+
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame with one row per input value and columns:
+        ``input_value``, ``best_fit``, ``median``, and all requested interval
+        bounds in the form ``neg_ci_<pct>`` and ``pos_ci_<pct>``.
+    """
+    values_arr = np.asarray(values, dtype=float)
+    scalar_input = values_arr.ndim == 0
+    if scalar_input:
+        values_arr = values_arr.reshape(1)
+
+    if len(fit_params) == 0:
+        raise ValueError("fit_params must contain at least one parameter vector.")
+
+    best_params = np.asarray(fit_params[0], dtype=float)
+    if fit_intercept:
+        if len(best_params) != 2:
+            raise ValueError("Intercept fits require exactly 2 parameters: slope and intercept.")
+    else:
+        if len(best_params) != 1:
+            raise ValueError("Zero-intercept fits require exactly 1 parameter: slope.")
+
+    variable = str(variable).lower()
+    if variable not in {"x", "y"}:
+        raise ValueError("variable must be either 'x' or 'y'.")
+
+    confidence_levels = _validate_confidence_levels(confidence_levels)
+    if line_max is None:
+        line_max = float(np.max(np.abs(values_arr))) * 1.1 if np.size(values_arr) else 1.0
+        if not np.isfinite(line_max) or line_max <= 0:
+            line_max = 1.0
+    if line_interval is None:
+        line_interval = max(float(line_max) / 1000.0, 1e-6)
+    if line_interval <= 0:
+        raise ValueError("line_interval must be positive.")
+
+    x_grid = np.linspace(0.0, float(line_max), max(2, int(round(float(line_max) / float(line_interval))) + 1))
+
+    if variable == "x":
+        base_values = x_grid
+        fitted_values = [
+            _evaluate_model_parameter_vector(params, base_values, fit_intercept=fit_intercept)
+            for params in fit_params
+        ]
+        true_values = np.asarray(fitted_values[0], dtype=float)
+    else:
+        base_values = np.asarray(
+            _evaluate_model_parameter_vector(best_params, x_grid, fit_intercept=fit_intercept),
+            dtype=float,
+        )
+        fitted_values = [
+            _invert_model_parameter_vector(params, base_values, fit_intercept=fit_intercept)
+            for params in fit_params
+        ]
+        true_values = np.asarray(fitted_values[0], dtype=float)
+
+    bounds: dict[str, np.ndarray] = {}
+    for level in confidence_levels:
+        lower_bound = np.empty_like(true_values, dtype=float)
+        upper_bound = np.empty_like(true_values, dtype=float)
+        for idx in range(len(true_values)):
+            sample_values = np.asarray([surface[idx] for surface in fitted_values], dtype=float)
+            lower_bound[idx] = float(np.quantile(sample_values, (1.0 - level) / 2.0))
+            upper_bound[idx] = float(np.quantile(sample_values, 1.0 - (1.0 - level) / 2.0))
+        bounds[f"neg_{level:.2f}"] = lower_bound
+        bounds[f"pos_{level:.2f}"] = upper_bound
+
+    surface_rows: dict[str, np.ndarray] = {}
+    for label, arr in bounds.items():
+        raw_coeffs, _ = _fit_polynomial_surface(x_grid, arr, max_order=max_poly_order)
+        surface_rows[f"{label}_poly"] = raw_coeffs
+
+    target_values = np.asarray(values_arr, dtype=float)
+    best_fit = np.asarray(
+        [
+            _evaluate_model_parameter_vector(best_params, value, fit_intercept=fit_intercept)
+            if variable == "x"
+            else _invert_model_parameter_vector(best_params, value, fit_intercept=fit_intercept)
+            for value in target_values
+        ],
+        dtype=float,
+    )
+
+    bootstrap_params = fit_params[1:] if len(fit_params) > 1 else [best_params]
+    median_values = np.asarray(
+        [
+            np.median(
+                np.asarray(
+                    [
+                        _evaluate_model_parameter_vector(params, value, fit_intercept=fit_intercept)
+                        if variable == "x"
+                        else _invert_model_parameter_vector(params, value, fit_intercept=fit_intercept)
+                        for params in bootstrap_params
+                    ],
+                    dtype=float,
+                )
+            )
+            for value in target_values
+        ],
+        dtype=float,
+    )
+
+    rows: list[dict[str, float]] = []
+    for idx, value in enumerate(target_values):
+        row: dict[str, float] = {
+            "input_value": float(value),
+            "best_fit": float(best_fit[idx]),
+            "median": float(median_values[idx]),
+        }
+        for level in confidence_levels:
+            label = f"{level:.2f}"
+            if variable == "x":
+                neg = float(np.polyval(surface_rows[f"neg_{label}_poly"], value))
+                pos = float(np.polyval(surface_rows[f"pos_{label}_poly"], value))
+            else:
+                neg = float(np.polyval(surface_rows[f"neg_{label}_poly"], best_fit[idx]))
+                pos = float(np.polyval(surface_rows[f"pos_{label}_poly"], best_fit[idx]))
+            row[f"neg_ci_{int(round(level * 100))}"] = neg
+            row[f"pos_ci_{int(round(level * 100))}"] = pos
+        rows.append(row)
+
+    results = pd.DataFrame(rows)
+    if scalar_input:
+        return results.iloc[[0]].reset_index(drop=True)
+    return results.reset_index(drop=True)
+
+
+def apply_calibration_y(
+    values: float | np.ndarray | list[float],
+    fit_params: Sequence[np.ndarray | list[float]],
+    fit_intercept: bool = True,
+    confidence_levels: Sequence[float] | float = (0.68, 0.95),
+    line_max: int | float | None = None,
+    line_interval: int | float | None = None,
+    max_poly_order: int = 5,
+) -> pd.DataFrame:
+    """Convenience wrapper for applying a calibration to y-values."""
+    return apply_calibration(
+        values=values,
+        fit_params=fit_params,
+        fit_intercept=fit_intercept,
+        variable="y",
+        confidence_levels=confidence_levels,
+        line_max=line_max,
+        line_interval=line_interval,
+        max_poly_order=max_poly_order,
+    )
 
 
 def plot_regression(

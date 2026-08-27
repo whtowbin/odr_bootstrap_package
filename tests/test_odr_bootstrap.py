@@ -9,6 +9,8 @@ import numpy as np
 import pandas as pd
 
 from odr_bootstrap import (
+    apply_calibration,
+    apply_calibration_y,
     bootstrap_odr_fit,
     evaluate_confidence,
     fit_defaults,
@@ -196,6 +198,45 @@ class TestEvaluateConfidence(unittest.TestCase):
         bad_params = [np.array([1.0, 2.0, 3.0])]
         with self.assertRaises(ValueError):
             evaluate_confidence(bad_params, line_max=6.0, line_interval=0.01)
+
+
+class TestApplyCalibration(unittest.TestCase):
+    """Test calibration-application helpers."""
+
+    def setUp(self):
+        np.random.seed(123)
+        slopes = np.random.normal(2.0, 0.05, 200)
+        intercepts = np.random.normal(1.0, 0.2, 200)
+        self.fit_params = [np.array([2.0, 1.0], dtype=float)]
+        self.fit_params.extend(
+            [np.array([slope, intercept], dtype=float) for slope, intercept in zip(slopes, intercepts)]
+        )
+
+    def test_applies_calibration_to_x_values(self):
+        result = apply_calibration(
+            [1.0, 2.0, 5.0],
+            self.fit_params,
+            fit_intercept=True,
+            variable="x",
+            confidence_levels=(0.68, 0.95),
+        )
+        self.assertIsInstance(result, pd.DataFrame)
+        self.assertTrue({"input_value", "best_fit", "median", "neg_ci_68", "pos_ci_68"}.issubset(result.columns))
+        self.assertAlmostEqual(result["best_fit"].iloc[0], 3.0, places=3)
+        self.assertAlmostEqual(result["best_fit"].iloc[-1], 11.0, places=3)
+
+    def test_applies_calibration_to_y_values_and_accepts_percent_levels(self):
+        result = apply_calibration_y(
+            [3.0, 5.0],
+            self.fit_params,
+            fit_intercept=True,
+            confidence_levels=(68, 95),
+        )
+        self.assertIsInstance(result, pd.DataFrame)
+        self.assertIn("neg_ci_68", result.columns)
+        self.assertIn("pos_ci_95", result.columns)
+        self.assertAlmostEqual(result["best_fit"].iloc[0], 1.0, places=2)
+        self.assertAlmostEqual(result["best_fit"].iloc[1], 2.0, places=2)
 
 
 class TestODRBootstrap(unittest.TestCase):

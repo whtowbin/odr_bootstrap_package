@@ -40,7 +40,10 @@ jobs:
     
     - name: Run tests with coverage
       run: uv run pytest --cov=odr_bootstrap --cov-report=xml --cov-report=term-missing
-    
+
+    - name: Run uv installation tests
+      run: uv run pytest -m install tests/test_installation.py --no-cov
+
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v5
       with:

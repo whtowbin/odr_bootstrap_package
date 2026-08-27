@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "odr-bootstrap"
-version = "1.3.0"
+version = "2.0.0"
 description = "Orthogonal Distance Regression with Bootstrap Resampling for SIMS Calibration"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -77,9 +77,12 @@ package = true
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-ra -q --cov=odr_bootstrap --cov-report=term-missing --cov-report=html"
+addopts = "-ra -q --cov=odr_bootstrap --cov-report=term-missing --cov-report=html -m 'not install'"
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = [
+    "install: slow end-to-end tests that build and install the package with uv (run with `pytest -m install`)",
+]
 
 [tool.coverage.run]
 source = ["odr_bootstrap"]

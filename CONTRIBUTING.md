@@ -36,6 +36,40 @@ uv run pytest --cov=odr_bootstrap --cov-report=html
 uv run pytest tests/test_odr_bootstrap.py -v
 ```
 
+### 4. Test Package Installation with uv
+
+`tests/test_installation.py` contains end-to-end tests that build the
+package and install it with `uv` exactly as described in the README and
+`docs/source/installation.rst` (`uv pip install`, `uv add`, and
+`uv sync` from a source checkout). They're excluded from the default
+`pytest` run (they're slower and don't touch application code, so they
+don't count towards coverage) and are run separately:
+
+```bash
+make test-install
+# or
+uv run pytest -m install tests/test_installation.py --no-cov
+```
+
+To test installation and the full test/lint/type-check suite across every
+Python version the package supports (3.11, 3.12, 3.13), use:
+
+```bash
+make test-all-versions
+# or directly
+./scripts/test-all-python-versions.sh
+
+# only specific versions
+./scripts/test-all-python-versions.sh 3.12 3.13
+
+# also include the slow uv-installation tests
+INSTALL_TESTS=1 ./scripts/test-all-python-versions.sh
+```
+
+This uses `uv python install` to provision any missing interpreters, then
+runs `ruff`, `mypy`, and `pytest` (and optionally the installation tests)
+against each one in an isolated environment.
+
 ## Code Quality Standards
 
 All contributions must meet these standards:

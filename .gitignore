@@ -145,4 +145,5 @@ docs/build/
 
 # Removed package directories
 odr_bootstrap/assets/
-scripts/
+scripts/*
+!scripts/test-all-python-versions.sh

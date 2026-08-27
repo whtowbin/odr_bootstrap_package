@@ -1,4 +1,4 @@
-.PHONY: help install sync test test-cov lint type-check format clean build release-check release publish publish-test docs
+.PHONY: help install sync test test-cov test-install test-all-versions lint type-check format clean build release-check release publish publish-test docs
 
 help:
 	@echo "ODR Bootstrap Package Management"
@@ -10,6 +10,8 @@ help:
 	@echo "Development:"
 	@echo "  make test           Run tests"
 	@echo "  make test-cov       Run tests with coverage report"
+	@echo "  make test-install   Run end-to-end uv installation tests (builds package, installs into fresh venvs)"
+	@echo "  make test-all-versions  Run lint/type-check/tests/install-tests across all supported Python versions (3.11-3.13)"
 	@echo "  make lint           Check code style with ruff"
 	@echo "  make type-check     Check types with mypy"
 	@echo "  make format         Format code with ruff (in-place)"
@@ -37,6 +39,12 @@ test-cov:
 	uv run pytest --cov=odr_bootstrap --cov-report=term-missing --cov-report=html
 	@echo "Coverage report generated: htmlcov/index.html"
 
+test-install:
+	uv run pytest -m install tests/test_installation.py --no-cov
+
+test-all-versions:
+	./scripts/test-all-python-versions.sh
+
 lint:
 	uv run ruff check .
 
@@ -63,6 +71,7 @@ docs:
 release-check: clean
 	uv sync --all-extras
 	uv run pytest
+	uv run pytest -m install tests/test_installation.py --no-cov
 	uv run ruff check .
 	uv run mypy odr_bootstrap
 	uv run --extra docs sphinx-build -b html docs/source docs/build/html

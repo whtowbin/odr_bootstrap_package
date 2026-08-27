@@ -112,31 +112,54 @@ print(f"Intercept: {best_fit_params[1]:.2f}")
 ### Plotting Calibration Estimate Distributions
 
 ```python
-from odr_bootstrap import plot_Calibration_Estimates
+from odr_bootstrap import gauss_agv_err, plot_datapoints
 import numpy as np
 
-# Extract bootstrap parameter distributions
-all_slopes = np.array([p[0] for p in all_params])
-all_intercepts = np.array([p[1] for p in all_params])
+# Extract bootstrap parameter distributions directly from the array of fit vectors
+all_params_array = np.asarray(all_params, dtype=float)
+all_slopes = all_params_array[:, 0]
+all_intercepts = all_params_array[:, 1]
 
-# Create synthetic measurement ensemble (for visualization)
-fit_params = np.array([[all_slopes.mean(), all_intercepts.mean()]] * 5)
-fit_params += np.random.normal(0, [all_slopes.std(), all_intercepts.std()], (5, 2))
-fit_error = np.array([[all_slopes.std(), all_intercepts.std()]] * 5)
+# Aggregate the distributions from the bootstrap fits directly
+slope_dist, slope_stats = gauss_agv_err(all_slopes, np.full_like(all_slopes, all_slopes.std()))
+intercept_dist, intercept_stats = gauss_agv_err(all_intercepts, np.full_like(all_intercepts, all_intercepts.std()))
 
-# Generate plot
-fig = plot_Calibration_Estimates(
-    fit_params,
-    fit_error,
-    Title="Calibration Slope & Intercept Distributions",
-)
+# Generate plot using the Gaussian aggregate distributions
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+plot_datapoints(slope_dist, slope_stats, ax=axes[0])
+plot_datapoints(intercept_dist, intercept_stats, ax=axes[1])
+axes[0].set_title('Slope Distribution')
+axes[1].set_title('Intercept Distribution')
+plt.tight_layout()
 plt.savefig('calibration_estimates.png', dpi=150)
+plt.show()
+```
+
+For the outlier-aware comparison, repeat the same aggregation on the bootstrap fits from the perturbed dataset:
+
+```python
+outlier_params_array = np.asarray(outlier_params, dtype=float)
+outlier_slopes = outlier_params_array[:, 0]
+outlier_intercepts = outlier_params_array[:, 1]
+outlier_slope_dist, outlier_slope_stats = gauss_agv_err(
+    outlier_slopes,
+    np.full_like(outlier_slopes, outlier_slopes.std()),
+)
+outlier_intercept_dist, outlier_intercept_stats = gauss_agv_err(
+    outlier_intercepts,
+    np.full_like(outlier_intercepts, outlier_intercepts.std()),
+)
+
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+plot_datapoints(outlier_slope_dist, outlier_slope_stats, ax=axes[0])
+plot_datapoints(outlier_intercept_dist, outlier_intercept_stats, ax=axes[1])
+plt.tight_layout()
 plt.show()
 ```
 
 ## Example Output
 
-The example script produces three useful figures for calibration analysis:
+The example script produces four useful figures for calibration analysis:
 
 ### Calibration curve with 68% and 95% bootstrap confidence bands
 
@@ -155,6 +178,12 @@ This second regression plot demonstrates how larger outliers affect the fit and 
 ![Bootstrap slope and intercept distributions](https://raw.githubusercontent.com/whtowbin/odr_bootstrap_package/main/calibration_estimates.png)
 
 This plot summarizes the distribution of the fitted slope and intercept across bootstrap resamples. It helps communicate how stable the calibration parameters are and how much uncertainty is associated with the estimated fit.
+
+### Outlier-affected parameter statistics
+
+![Outlier-affected slope and intercept distributions](https://raw.githubusercontent.com/whtowbin/odr_bootstrap_package/main/calibration_estimates_outlier.png)
+
+This comparison shows how a larger anomalous point broadens and shifts the parameter distributions. The Gaussian aggregate representation makes the effect of the outlier easy to visualize in the same statistical language as the clean calibration fit.
 
 ## Module Functions
 

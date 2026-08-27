@@ -602,7 +602,7 @@ def gauss_agv_err(
     cut_off: float = 0.000001,
 ) -> tuple[dict[str, np.ndarray], dict[str, Any]]:
     """
-    Compute an aggregate Gaussian distribution from values and uncertainties.
+    Compute an aggregate Gaussian of distributions from values and uncertainties.
 
     Combines multiple normal distributions into a single kernel density estimate.
     Uses trapezoidal integration (via scipy.integrate.trapezoid) to normalize.
@@ -651,15 +651,27 @@ def gauss_agv_err(
     ) -> tuple[float, float]:
         avg_arr = np.asarray(avgs, dtype=float)
         sigma_arr = np.asarray(sigmas, dtype=float)
-        max_val = float(np.max(avg_arr) + 3 * np.max(sigma_arr))
-        min_val = float(np.min(avg_arr) - 3 * np.max(sigma_arr))
-        return min_val, max_val
+        valid = np.isfinite(avg_arr) & np.isfinite(sigma_arr) & (sigma_arr > 0)
+        if not np.any(valid):
+            raise ValueError("Input concentrations and errors must contain finite positive values.")
+
+        avg_arr = avg_arr[valid]
+        sigma_arr = sigma_arr[valid]
+
+        lower_bound = float(np.percentile(avg_arr, 0.5) - 6 * np.percentile(sigma_arr, 99.0))
+        upper_bound = float(np.percentile(avg_arr, 99.5) + 6 * np.percentile(sigma_arr, 99.0))
+        return lower_bound, upper_bound
 
     concentrations_arr = np.asarray(concentrations, dtype=float)
     errors_arr = np.asarray(errors, dtype=float)
 
     min_val, max_val = find_range(concentrations_arr, errors_arr)
-    xi = np.arange(min_val, max_val, 0.01)
+    spread = max_val - min_val
+    step = max(0.01, spread / 20000.0)
+    xi = np.arange(min_val, max_val + step, step)
+    if len(xi) > 50000:
+        step = spread / 50000.0
+        xi = np.arange(min_val, max_val + step, step)
     x = np.tile(xi, (len(concentrations_arr), 1))
     unnormed_data = np.sum(gaussian(x.T, errors_arr, concentrations_arr), axis=1)
     data = unnormed_data / np.trapezoid(unnormed_data)

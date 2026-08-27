@@ -112,13 +112,16 @@ The ``ODR_Bootstrap`` function returns a 5-tuple:
 Analyzing Bootstrap Distributions
 ==================================
 
+The package uses the Gaussian aggregate helper, :func:`odr_bootstrap.gauss_agv_err`, to summarize the bootstrap fit distribution for each parameter. This directly aggregates the actual bootstrap fits into a smooth approximate distribution, which makes the parameter uncertainty easier to inspect than a hand-built synthetic sample.
+
 Extract and analyze the parameter distributions:
 
 .. code-block:: python
 
-   # Extract bootstrap parameters
-   all_slopes = np.array([p[0] for p in all_params])
-   all_intercepts = np.array([p[1] for p in all_params])
+   # Extract bootstrap parameters directly from the parameter array
+   all_params_array = np.asarray(all_params, dtype=float)
+   all_slopes = all_params_array[:, 0]
+   all_intercepts = all_params_array[:, 1]
 
    # Compute statistics
    slope_mean = all_slopes.mean()
@@ -129,26 +132,48 @@ Extract and analyze the parameter distributions:
    print(f"Slope: {slope_mean:.2f} ± {slope_std:.2f}")
    print(f"Intercept: {intercept_mean:.2f} ± {intercept_std:.2f}")
 
-   # Plot distributions
-   from odr_bootstrap import plot_Calibration_Estimates
+   # Aggregate the bootstrap fit distributions directly
+   from odr_bootstrap import gauss_agv_err, plot_datapoints
 
-   # Create measurement ensemble
-   fit_params = np.array([
-       [slope_mean, intercept_mean]
-       for _ in range(5)
-   ])
-   fit_params += np.random.normal(0, [slope_std, intercept_std], (5, 2))
-
-   fit_error = np.array([
-       [slope_std, intercept_std]
-       for _ in range(5)
-   ])
-
-   fig = plot_Calibration_Estimates(
-       fit_params,
-       fit_error,
-       Title="Calibration Parameters Bootstrap Distribution"
+   slope_dist, slope_stats = gauss_agv_err(
+       all_slopes,
+       np.full_like(all_slopes, slope_std),
    )
+   intercept_dist, intercept_stats = gauss_agv_err(
+       all_intercepts,
+       np.full_like(all_intercepts, intercept_std),
+   )
+
+   fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+   plot_datapoints(slope_dist, slope_stats, ax=axes[0])
+   plot_datapoints(intercept_dist, intercept_stats, ax=axes[1])
+   axes[0].set_title("Slope Distribution")
+   axes[1].set_title("Intercept Distribution")
+   fig.tight_layout()
+   plt.show()
+
+For the same comparison with a strong outlier, repeat the same aggregation on the outlier-affected bootstrap fits:
+
+.. code-block:: python
+
+   outlier_params_array = np.asarray(outlier_params, dtype=float)
+   outlier_slopes = outlier_params_array[:, 0]
+   outlier_intercepts = outlier_params_array[:, 1]
+   outlier_slope_dist, outlier_slope_stats = gauss_agv_err(
+       outlier_slopes,
+       np.full_like(outlier_slopes, outlier_slopes.std()),
+   )
+   outlier_intercept_dist, outlier_intercept_stats = gauss_agv_err(
+       outlier_intercepts,
+       np.full_like(outlier_intercepts, outlier_intercepts.std()),
+   )
+
+   fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+   plot_datapoints(outlier_slope_dist, outlier_slope_stats, ax=axes[0])
+   plot_datapoints(outlier_intercept_dist, outlier_intercept_stats, ax=axes[1])
+   axes[0].set_title("Outlier-Affected Slope Distribution")
+   axes[1].set_title("Outlier-Affected Intercept Distribution")
+   fig.tight_layout()
    plt.show()
 
 Zero-Intercept Fits

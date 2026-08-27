@@ -214,6 +214,18 @@ class TestGaussAvgErr(unittest.TestCase):
         _, stats = gauss_agv_err(self.concentrations, self.errors)
         self.assertEqual(stats["n"], len(self.concentrations))
 
+    def test_gauss_agv_err_handles_outlier_spread(self):
+        """Test broad outlier-heavy parameter distributions do not explode the grid size."""
+        concentrations = np.array([100.0, 120.0, 110.0, 175.0, 3000.0, 90.0])
+        errors = np.array([5.0, 6.0, 5.0, 10.0, 25.0, 4.0])
+
+        dist, stats = gauss_agv_err(concentrations, errors)
+
+        self.assertTrue(np.isfinite(dist["x"]).all())
+        self.assertTrue(np.isfinite(dist["y"]).all())
+        self.assertLess(len(dist["x"]), 50000)
+        self.assertEqual(stats["n"], len(concentrations))
+
 
 class TestPlottingFunctions(unittest.TestCase):
     """Test plotting functions return correct matplotlib objects."""

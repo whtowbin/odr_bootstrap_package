@@ -13,13 +13,14 @@ This generates:
 
 - **calibration_curve.png** - Best-fit line with both 68% and 95% confidence bands
 - **calibration_curve_outlier.png** - Synthetic outlier example with a larger anomalous point
-- **calibration_estimates.png** - Bootstrap parameter distributions
+- **calibration_estimates.png** - Bootstrap parameter distributions for the clean dataset
+- **calibration_estimates_outlier.png** - Parameter distributions for the outlier-affected fit
 
 ## Example Output
 
-The example writes three publication-quality figures from synthetic calibration datasets. Together they show the fitted calibration relationship, the effect of a larger outlier on the uncertainty bands, and the distribution of the fitted slope and intercept estimates.
+The example writes four publication-quality figures from synthetic calibration datasets. Together they show the fitted calibration relationship, the effect of a larger outlier on the uncertainty bands, and the distribution of the fitted slope and intercept estimates for both the clean and outlier-affected models.
 
-The first plot shows the best-fit line with both the 68% and 95% bootstrap confidence bands in one figure, while the second demonstrates larger outliers and how they broaden the uncertainty envelope in a single plot. The third summarizes the distribution of the slope and intercept estimates across many resampled fits.
+The first plot shows the best-fit line with both the 68% and 95% bootstrap confidence bands in one figure, the second demonstrates larger outliers and how they broaden the uncertainty envelope, and the third/fourth use the Gaussian aggregate summary from `gauss_agv_err` to visualize the slope and intercept distributions for the clean and outlier-affected fits.
 
 ### Calibration Fit
 
@@ -38,6 +39,12 @@ Larger outliers widen the uncertainty envelope and shift the fitted trend, which
 ![Bootstrap calibration slope and intercept distributions](https://raw.githubusercontent.com/whtowbin/odr_bootstrap_package/main/calibration_estimates.png)
 
 The distribution of slope and intercept estimates provides a compact view of parameter uncertainty, which is especially useful for scientific reporting.
+
+### Outlier-Affected Parameter Statistics
+
+![Outlier-affected slope and intercept distributions](https://raw.githubusercontent.com/whtowbin/odr_bootstrap_package/main/calibration_estimates_outlier.png)
+
+This companion plot shows how a larger anomalous point broadens and shifts the fitted parameter distributions. The Gaussian aggregate view makes the outlier influence explicit while keeping the same statistical summary used for the clean dataset.
 
 ## What to look for in these figures
 

@@ -67,14 +67,13 @@ include = [
     "docs/**",
     "examples/**",
     "*.png",
-    "odr_bootstrap/assets/*.png",
 ]
 
 [tool.hatch.build.targets.wheel]
 packages = ["odr_bootstrap"]
-artifacts = [
-    "odr_bootstrap/assets/*.png",
-]
+
+[tool.uv]
+package = true
 
 [tool.pytest.ini_options]
 minversion = "7.0"

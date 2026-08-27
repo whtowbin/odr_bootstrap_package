@@ -29,7 +29,6 @@ sync:
 
 install:
 	uv sync --all-extras
-	uv pip install -e ".[dev,docs,test]"
 
 test:
 	uv run pytest

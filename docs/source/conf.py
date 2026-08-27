@@ -66,7 +66,7 @@ html_theme_options = {
 templates_path = ["_templates"]
 html_static_path = ["_static"]
 
-# Source file suffixes: support modern Markdown content alongside legacy RST.
+# Source file suffixes
 source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
 
 # Master doc
@@ -81,9 +81,3 @@ myst_heading_anchors = 6
 
 # Suppress warnings
 suppress_warnings = ["ref.python"]
-
-# Output options
-html_use_smartypants = True
-html_show_sourcelink = True
-html_show_sphinx = True
-html_show_copyright = True

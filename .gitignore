@@ -139,3 +139,10 @@ Thumbs.db
 !calibration_estimates_outlier.png
 !docs/source/_static/*.png
 !examples/*.png
+
+# Docs build output (Makefile writes here)
+docs/build/
+
+# Removed package directories
+odr_bootstrap/assets/
+scripts/

@@ -38,7 +38,7 @@ def main() -> None:
     # =========================================================================
     # 1. Create Synthetic Calibration Data
     # =========================================================================
-    print("\n[1/5] Creating synthetic calibration data...")
+    print("\n[1/6] Creating synthetic calibration data...")
 
     x_standards = np.array([0.1, 0.5, 1.0, 2.0, 5.0, 10.0])
     y_measured = 125 * x_standards + 15 + np.random.normal(0, 40, len(x_standards))
@@ -48,7 +48,7 @@ def main() -> None:
     # Derive sensible initial parameters from the data
     defaults = fit_defaults(x_standards, y_measured, fit_intercept=True)
     initial_guess = defaults["initial_guess"]
-    line_max = defaults["line_max"] * 1.2  # extend slightly beyond the data
+    line_max = defaults["line_max"] * 1.2
     line_interval = defaults["line_interval"]
 
     print(f"   Standards: {x_standards}")
@@ -72,7 +72,7 @@ def main() -> None:
     # =========================================================================
     # 2. Run ODR Bootstrap Fitting
     # =========================================================================
-    print("\n[2/5] Running ODR Bootstrap (N=2000 resamples)...")
+    print("\n[2/6] Running ODR Bootstrap (N=2000 resamples)...")
 
     confidence_data, best_fit_params, points, all_params, _ = odr_bootstrap(
         x=x_standards,
@@ -132,7 +132,7 @@ def main() -> None:
     # =========================================================================
     # 3. Plot Regression with 68% and 95% confidence intervals
     # =========================================================================
-    print("\n[3/5] Plotting regression with 68% and 95% confidence intervals...")
+    print("\n[3/6] Plotting regression with 68% and 95% confidence intervals...")
 
     fig, ax = plt.subplots(figsize=(10, 6))
     plot_regression(
@@ -155,34 +155,9 @@ def main() -> None:
     plt.close(fig)
 
     # =========================================================================
-    # 4. Plot Outlier Sensitivity Example
+    # 4. Plot Calibration Estimate Distributions
     # =========================================================================
-    print("\n[4/5] Plotting outlier sensitivity example...")
-
-    fig, ax = plt.subplots(figsize=(10, 6))
-    plot_regression(
-        [outlier_conf_95, outlier_conf_68],
-        datapoints=outlier_points,
-        ax=ax,
-        ecolor=["#fde68a", "#d97706"],
-        line_color="#7c2d12",
-        e_alpha=[0.4, 0.8],
-        linewidth=2.5,
-    )
-    ax.set_xlabel("Concentration (ppm)", fontsize=12)
-    ax.set_ylabel("Ion Intensity (counts)", fontsize=12)
-    ax.grid(True, alpha=0.3)
-    fig.tight_layout()
-    fig.savefig(OUTPUT_DIR / "calibration_curve_outlier.png", dpi=150, bbox_inches="tight")
-    fig.savefig(REPO_ROOT / "calibration_curve_outlier.png", dpi=150, bbox_inches="tight")
-    fig.savefig(DOCS_STATIC_DIR / "calibration_curve_outlier.png", dpi=150, bbox_inches="tight")
-    print(f"   ✓ Saved: {OUTPUT_DIR / 'calibration_curve_outlier.png'}")
-    plt.close(fig)
-
-    # =========================================================================
-    # 5. Plot Calibration Estimate Distributions
-    # =========================================================================
-    print("\n[5/6] Plotting calibration estimate distributions...")
+    print("\n[4/6] Plotting calibration estimate distributions...")
 
     all_params_array = np.asarray(all_params, dtype=float)
     all_slopes = all_params_array[:, 0]
@@ -216,7 +191,36 @@ def main() -> None:
     print(f"   ✓ Saved: {OUTPUT_DIR / 'calibration_estimates.png'}")
     plt.close(fig)
 
+    # =========================================================================
+    # 5. Plot Outlier Sensitivity Example
+    # =========================================================================
+    print("\n[5/6] Plotting outlier sensitivity example...")
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    plot_regression(
+        [outlier_conf_95, outlier_conf_68],
+        datapoints=outlier_points,
+        ax=ax,
+        ecolor=["#fde68a", "#d97706"],
+        line_color="#7c2d12",
+        e_alpha=[0.4, 0.8],
+        linewidth=2.5,
+    )
+    ax.set_xlabel("Concentration (ppm)", fontsize=12)
+    ax.set_ylabel("Ion Intensity (counts)", fontsize=12)
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(OUTPUT_DIR / "calibration_curve_outlier.png", dpi=150, bbox_inches="tight")
+    fig.savefig(REPO_ROOT / "calibration_curve_outlier.png", dpi=150, bbox_inches="tight")
+    fig.savefig(DOCS_STATIC_DIR / "calibration_curve_outlier.png", dpi=150, bbox_inches="tight")
+    print(f"   ✓ Saved: {OUTPUT_DIR / 'calibration_curve_outlier.png'}")
+    plt.close(fig)
+
+    # =========================================================================
+    # 6. Plot Outlier-Affected Parameter Distributions
+    # =========================================================================
     print("\n[6/6] Plotting outlier-affected calibration estimate distributions...")
+
     outlier_params_array = np.asarray(outlier_params, dtype=float)
     outlier_slopes = outlier_params_array[:, 0]
     outlier_intercepts = outlier_params_array[:, 1]

@@ -3,31 +3,37 @@
 API Reference
 =============
 
+Defaults Helper
+---------------
+
+.. autofunction:: odr_bootstrap.fit_defaults
+   :noindex:
+
 Core Fitting Functions
 ----------------------
 
-.. autofunction:: odr_bootstrap.ODR_Linear
+.. autofunction:: odr_bootstrap.fit_odr_linear
    :noindex:
 
-.. autofunction:: odr_bootstrap.ODR_Linear_Test
+.. autofunction:: odr_bootstrap.fit_odr_linear_debug
    :noindex:
 
-.. autofunction:: odr_bootstrap.Bootstrap_fit
+.. autofunction:: odr_bootstrap.bootstrap_odr_fit
    :noindex:
 
-.. autofunction:: odr_bootstrap.ODR_Bootstrap
+.. autofunction:: odr_bootstrap.odr_bootstrap
    :noindex:
 
 Confidence Interval Evaluation
-------------------------------
+-------------------------------
 
-.. autofunction:: odr_bootstrap.Eval_Conf
+.. autofunction:: odr_bootstrap.evaluate_confidence
    :noindex:
 
 Statistical Functions
 ---------------------
 
-.. autofunction:: odr_bootstrap.gauss_agv_err
+.. autofunction:: odr_bootstrap.gaussian_aggregate
    :noindex:
 
 Plotting Functions
@@ -36,19 +42,19 @@ Plotting Functions
 .. autofunction:: odr_bootstrap.plot_regression
    :noindex:
 
-.. autofunction:: odr_bootstrap.plot_datapoints
+.. autofunction:: odr_bootstrap.plot_density
    :noindex:
 
-.. autofunction:: odr_bootstrap.plot_Calibration_Estimates
+.. autofunction:: odr_bootstrap.plot_calibration_estimates
    :noindex:
 
-Helper Functions
-----------------
+Model Functions
+---------------
 
-.. autofunction:: odr_bootstrap.yint_func
+.. autofunction:: odr_bootstrap.linear_with_intercept
    :noindex:
 
-.. autofunction:: odr_bootstrap.slope_func
+.. autofunction:: odr_bootstrap.linear_through_origin
    :noindex:
 
 Complete Module Reference

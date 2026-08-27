@@ -14,16 +14,16 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from odr_bootstrap import (  # noqa: E402
-    Eval_Conf,
-    ODR_Bootstrap,
-    gauss_agv_err,
-    plot_datapoints,
+    evaluate_confidence,
+    fit_defaults,
+    gaussian_aggregate,
+    odr_bootstrap,
+    plot_density,
     plot_regression,
 )
 
 OUTPUT_DIR = Path(__file__).resolve().parent
 DOCS_STATIC_DIR = REPO_ROOT / "docs" / "source" / "_static"
-REGRESSION_LINE_INTERVAL = 0.25
 
 
 def main() -> None:
@@ -45,14 +45,20 @@ def main() -> None:
     x_uncertainty = np.array([0.01, 0.05, 0.1, 0.2, 0.5, 1.0])
     y_uncertainty = np.array([20, 30, 50, 60, 100, 150])
 
-    ls_slope, ls_intercept = np.polyfit(x_standards, y_measured, 1)
-    initial_guess = [ls_slope, ls_intercept]
+    # Derive sensible initial parameters from the data
+    defaults = fit_defaults(x_standards, y_measured, fit_intercept=True)
+    initial_guess = defaults["initial_guess"]
+    line_max = defaults["line_max"] * 1.2  # extend slightly beyond the data
+    line_interval = defaults["line_interval"]
 
     print(f"   Standards: {x_standards}")
     print(f"   Measurements: {y_measured}")
     print(f"   X uncertainties: {x_uncertainty}")
     print(f"   Y uncertainties: {y_uncertainty}")
-    print(f"   Least-squares initial guess: slope={ls_slope:.3f}, intercept={ls_intercept:.3f}")
+    print(
+        f"   Least-squares initial guess: "
+        f"slope={initial_guess[0]:.3f}, intercept={initial_guess[1]:.3f}"
+    )
 
     x_outlier = np.concatenate([x_standards, [8.5, 12]])
     y_outlier = np.concatenate([
@@ -68,37 +74,55 @@ def main() -> None:
     # =========================================================================
     print("\n[2/5] Running ODR Bootstrap (N=2000 resamples)...")
 
-    confidence_data, best_fit_params, points, all_params, _ = ODR_Bootstrap(
+    confidence_data, best_fit_params, points, all_params, _ = odr_bootstrap(
         x=x_standards,
         y=y_measured,
         x_err=x_uncertainty,
         y_err=y_uncertainty,
         resample_draws=2000,
-        InterceptFit=True,
-        InitialGuess=initial_guess,
-        Confidence_Bound=0.95,
-        LineMax=12,
-        LineInterval=REGRESSION_LINE_INTERVAL,
+        fit_intercept=True,
+        initial_guess=initial_guess,
+        confidence_level=0.95,
+        line_max=line_max,
+        line_interval=line_interval,
     )
 
-    conf_68 = Eval_Conf(all_params, Confidence_Bound=0.68, LineMax=12, LineInt=REGRESSION_LINE_INTERVAL)
-    conf_95 = Eval_Conf(all_params, Confidence_Bound=0.95, LineMax=12, LineInt=REGRESSION_LINE_INTERVAL)
+    conf_68 = evaluate_confidence(
+        all_params, line_max=line_max, line_interval=line_interval,
+        confidence_level=0.68,
+    )
+    conf_95 = evaluate_confidence(
+        all_params, line_max=line_max, line_interval=line_interval,
+        confidence_level=0.95,
+    )
 
-    outlier_initial_guess = np.polyfit(x_outlier, y_outlier, 1)
-    outlier_confidence_data, outlier_best_fit, outlier_points, outlier_params, _ = ODR_Bootstrap(
+    outlier_defaults = fit_defaults(x_outlier, y_outlier, fit_intercept=True)
+    outlier_confidence_data, outlier_best_fit, outlier_points, outlier_params, _ = odr_bootstrap(
         x=x_outlier,
         y=y_outlier,
         x_err=x_outlier_err,
         y_err=y_outlier_err,
         resample_draws=2000,
-        InterceptFit=True,
-        InitialGuess=list(outlier_initial_guess),
-        Confidence_Bound=0.95,
-        LineMax=12,
-        LineInterval=REGRESSION_LINE_INTERVAL,
+        fit_intercept=True,
+        initial_guess=outlier_defaults["initial_guess"],
+        confidence_level=0.95,
+        line_max=outlier_defaults["line_max"] * 1.2,
+        line_interval=outlier_defaults["line_interval"],
     )
-    outlier_conf_68 = Eval_Conf(outlier_params, Confidence_Bound=0.68, LineMax=11, LineInt=REGRESSION_LINE_INTERVAL)
-    outlier_conf_95 = Eval_Conf(outlier_params, Confidence_Bound=0.95, LineMax=11, LineInt=REGRESSION_LINE_INTERVAL)
+    outlier_line_max = outlier_defaults["line_max"] * 1.2
+    outlier_line_interval = outlier_defaults["line_interval"]
+    outlier_conf_68 = evaluate_confidence(
+        outlier_params,
+        line_max=outlier_line_max,
+        line_interval=outlier_line_interval,
+        confidence_level=0.68,
+    )
+    outlier_conf_95 = evaluate_confidence(
+        outlier_params,
+        line_max=outlier_line_max,
+        line_interval=outlier_line_interval,
+        confidence_level=0.95,
+    )
 
     print(f"   Best fit slope: {best_fit_params[0]:.2f}")
     print(f"   Best fit intercept: {best_fit_params[1]:.2f}")
@@ -168,18 +192,18 @@ def main() -> None:
     intercept_mean = all_intercepts.mean()
     intercept_std = all_intercepts.std()
 
-    slope_dist, slope_stats = gauss_agv_err(
+    slope_dist, slope_stats = gaussian_aggregate(
         all_slopes,
         np.full_like(all_slopes, slope_std),
     )
-    intercept_dist, intercept_stats = gauss_agv_err(
+    intercept_dist, intercept_stats = gaussian_aggregate(
         all_intercepts,
         np.full_like(all_intercepts, intercept_std),
     )
 
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
-    plot_datapoints(slope_dist, slope_stats, ax=axes[0])
-    plot_datapoints(intercept_dist, intercept_stats, ax=axes[1])
+    plot_density(slope_dist, slope_stats, ax=axes[0])
+    plot_density(intercept_dist, intercept_stats, ax=axes[1])
     axes[0].set_xlabel("Calibration Slope", fontsize=12)
     axes[0].set_ylabel("Probability", fontsize=12)
     axes[1].set_xlabel("Calibration Y-Intercept", fontsize=12)
@@ -199,18 +223,18 @@ def main() -> None:
     outlier_slope_std = outlier_slopes.std()
     outlier_intercept_std = outlier_intercepts.std()
 
-    outlier_slope_dist, outlier_slope_stats = gauss_agv_err(
+    outlier_slope_dist, outlier_slope_stats = gaussian_aggregate(
         outlier_slopes,
         np.full_like(outlier_slopes, outlier_slope_std),
     )
-    outlier_intercept_dist, outlier_intercept_stats = gauss_agv_err(
+    outlier_intercept_dist, outlier_intercept_stats = gaussian_aggregate(
         outlier_intercepts,
         np.full_like(outlier_intercepts, outlier_intercept_std),
     )
 
     outlier_fig, outlier_axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
-    plot_datapoints(outlier_slope_dist, outlier_slope_stats, ax=outlier_axes[0])
-    plot_datapoints(outlier_intercept_dist, outlier_intercept_stats, ax=outlier_axes[1])
+    plot_density(outlier_slope_dist, outlier_slope_stats, ax=outlier_axes[0])
+    plot_density(outlier_intercept_dist, outlier_intercept_stats, ax=outlier_axes[1])
     outlier_axes[0].set_xlabel("Outlier-affected Slope", fontsize=12)
     outlier_axes[0].set_ylabel("Probability", fontsize=12)
     outlier_axes[1].set_xlabel("Outlier-affected Y-Intercept", fontsize=12)

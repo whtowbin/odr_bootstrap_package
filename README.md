@@ -62,29 +62,29 @@ For quick reference, see:
 ```python
 import numpy as np
 import matplotlib.pyplot as plt
-from odr_bootstrap import ODR_Bootstrap, plot_regression
+from odr_bootstrap import odr_bootstrap, fit_defaults, plot_regression
 
 # Prepare calibration data
 x_standards = np.array([0.1, 0.5, 1.0, 2.0, 5.0])      # Concentrations
-y_intensity = np.array([45, 200, 350, 700, 1450])      # Ion counts
-x_uncertainty = np.array([0.01, 0.05, 0.1, 0.2, 0.5]) # Measurement errors in x
-y_uncertainty = np.array([5, 20, 35, 60, 120])         # Measurement errors in y
+y_intensity = np.array([45, 200, 350, 700, 1450])        # Ion counts
+x_uncertainty = np.array([0.01, 0.05, 0.1, 0.2, 0.5])   # Errors in x
+y_uncertainty = np.array([5, 20, 35, 60, 120])           # Errors in y
 
-# Estimate a reasonable starting point from a simple least-squares fit
-ls_slope, ls_intercept = np.polyfit(x_standards, y_intensity, 1)
-initial_guess = [ls_slope, ls_intercept]
+# Derive sensible starting parameters from the data
+defaults = fit_defaults(x_standards, y_intensity)
 
 # Run ODR bootstrap with 2000 resamples
-confidence_data, best_fit_params, points, all_params, subsamples = ODR_Bootstrap(
+confidence_data, best_fit_params, points, all_params, subsamples = odr_bootstrap(
     x=x_standards,
     y=y_intensity,
     x_err=x_uncertainty,
     y_err=y_uncertainty,
     resample_draws=2000,
-    InterceptFit=True,
-    InitialGuess=initial_guess,
-    Confidence_Bound=0.95,
-    LineMax=6,
+    fit_intercept=True,
+    initial_guess=defaults["initial_guess"],
+    confidence_level=0.95,
+    line_max=defaults["line_max"],
+    line_interval=defaults["line_interval"],
 )
 
 # Plot the result
@@ -112,48 +112,30 @@ print(f"Intercept: {best_fit_params[1]:.2f}")
 ### Plotting Calibration Estimate Distributions
 
 ```python
-from odr_bootstrap import gauss_agv_err, plot_datapoints
+from odr_bootstrap import gaussian_aggregate, plot_density
 import numpy as np
 
-# Extract bootstrap parameter distributions directly from the array of fit vectors
+# Extract bootstrap parameter distributions
 all_params_array = np.asarray(all_params, dtype=float)
 all_slopes = all_params_array[:, 0]
 all_intercepts = all_params_array[:, 1]
 
-# Aggregate the distributions from the bootstrap fits directly
-slope_dist, slope_stats = gauss_agv_err(all_slopes, np.full_like(all_slopes, all_slopes.std()))
-intercept_dist, intercept_stats = gauss_agv_err(all_intercepts, np.full_like(all_intercepts, all_intercepts.std()))
+# Aggregate into smooth distributions
+slope_dist, slope_stats = gaussian_aggregate(
+    all_slopes, np.full_like(all_slopes, all_slopes.std())
+)
+intercept_dist, intercept_stats = gaussian_aggregate(
+    all_intercepts, np.full_like(all_intercepts, all_intercepts.std())
+)
 
-# Generate plot using the Gaussian aggregate distributions
+# Generate plot
 fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-plot_datapoints(slope_dist, slope_stats, ax=axes[0])
-plot_datapoints(intercept_dist, intercept_stats, ax=axes[1])
+plot_density(slope_dist, slope_stats, ax=axes[0])
+plot_density(intercept_dist, intercept_stats, ax=axes[1])
 axes[0].set_title('Slope Distribution')
 axes[1].set_title('Intercept Distribution')
 plt.tight_layout()
 plt.savefig('calibration_estimates.png', dpi=150)
-plt.show()
-```
-
-For the outlier-aware comparison, repeat the same aggregation on the bootstrap fits from the perturbed dataset:
-
-```python
-outlier_params_array = np.asarray(outlier_params, dtype=float)
-outlier_slopes = outlier_params_array[:, 0]
-outlier_intercepts = outlier_params_array[:, 1]
-outlier_slope_dist, outlier_slope_stats = gauss_agv_err(
-    outlier_slopes,
-    np.full_like(outlier_slopes, outlier_slopes.std()),
-)
-outlier_intercept_dist, outlier_intercept_stats = gauss_agv_err(
-    outlier_intercepts,
-    np.full_like(outlier_intercepts, outlier_intercepts.std()),
-)
-
-fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-plot_datapoints(outlier_slope_dist, outlier_slope_stats, ax=axes[0])
-plot_datapoints(outlier_intercept_dist, outlier_intercept_stats, ax=axes[1])
-plt.tight_layout()
 plt.show()
 ```
 
@@ -187,43 +169,50 @@ This comparison shows how a larger anomalous point broadens and shifts the param
 
 ## Module Functions
 
+### Defaults Helper
+
+- **`fit_defaults(x, y, fit_intercept=True)`**  
+  Compute sensible starting parameters from data using a least-squares pre-fit.  
+  Returns: `{"initial_guess": [...], "line_max": float, "line_interval": float}`
+
 ### Core Fitting
 
-- **`ODR_Linear(x, y, x_err, y_err, intercept=False, InitialGuess=[100, 1])`**  
-  Single orthogonal distance regression fit with optional y-intercept.
-  Returns: (fitted_params, param_uncertainties)
+- **`fit_odr_linear(x, y, x_err, y_err, fit_intercept=True, initial_guess=None)`**  
+  Single orthogonal distance regression fit. `initial_guess=None` auto-derives from the data.  
+  Returns: `(params, param_errors)`
 
-- **`ODR_Linear_Test(x, y, x_err, y_err, ...)`**  
-  ODR fit returning full scipy.odr output object for diagnostics.
+- **`fit_odr_linear_debug(x, y, x_err, y_err, ...)`**  
+  Same as `fit_odr_linear` but also returns the raw `scipy.odr.Output` object for diagnostics.
 
-- **`Bootstrap_fit(x, y, x_err, y_err, resample_draws, ...)`**  
-  Resample data N times and fit ODR model to each resample.
-  Returns: (all_fit_params, resampled_data)
+- **`bootstrap_odr_fit(x, y, x_err, y_err, resample_draws, ...)`**  
+  Resample data N times and refit the ODR model to each resample.  
+  Returns: `(all_fit_params, resampled_data)`
 
 ### Confidence Intervals
 
-- **`Eval_Conf(Fit_Param, Confidence_Bound=0.95, LineMax=200, ...)`**  
-  Compute confidence intervals from bootstrap parameter distributions.
+- **`evaluate_confidence(fit_params, line_max, line_interval, confidence_level=0.95)`**  
+  Compute confidence intervals from bootstrap parameter distributions.  
   Returns: DataFrame with confidence bounds indexed by x-values.
 
-- **`ODR_Bootstrap(...)`**  
-  Convenience wrapper combining Bootstrap_fit + Eval_Conf in one call.
+- **`odr_bootstrap(...)`**  
+  Top-level convenience wrapper: calls `bootstrap_odr_fit` + `evaluate_confidence`.  
+  `line_max`, `line_interval`, and `initial_guess` are auto-derived when `None`.
 
 ### Statistics
 
-- **`gauss_agv_err(concentrations, errors, ...)`**  
-  Aggregate multiple normal distributions into single KDE estimate.
-  Returns: (distribution_dict, statistics_dict)
+- **`gaussian_aggregate(concentrations, errors)`**  
+  Aggregate multiple normal distributions into a single KDE estimate.  
+  Returns: `(distribution_dict, statistics_dict)`
 
 ### Plotting
 
 - **`plot_regression(confidence_df, datapoints=None, ax=None, ...)`**  
-  Plot best-fit line with shaded confidence band.
+  Plot best-fit line with shaded confidence band(s).
 
-- **`plot_datapoints(data, bounds, ax=None, ...)`**  
-  Plot probability density curve with summary statistics.
+- **`plot_density(data, bounds, ax=None, ...)`**  
+  Plot a probability density curve from `gaussian_aggregate` output with summary statistics.
 
-- **`plot_Calibration_Estimates(fit_params, fit_error, Title=...)`**  
+- **`plot_calibration_estimates(fit_params, fit_error, title=...)`**  
   Side-by-side slope and intercept distribution plots.
 
 
@@ -246,8 +235,8 @@ This generates:
 Full documentation is available in function docstrings:
 
 ```python
-from odr_bootstrap import ODR_Bootstrap
-help(ODR_Bootstrap)
+from odr_bootstrap import odr_bootstrap
+help(odr_bootstrap)
 ```
 
 ## Requirements
@@ -278,4 +267,4 @@ If you use this package in research, please cite:
 
 ---
 
-**Status**: Beta (0.1.0) | **Last Updated**: April 2025
+**Status**: Beta (0.2.0) | **Last Updated**: August 2025

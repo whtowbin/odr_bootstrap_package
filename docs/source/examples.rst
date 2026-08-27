@@ -24,7 +24,7 @@ Example Output
 
 The example writes four publication-quality figures from synthetic calibration datasets. Together they show the fitted calibration relationship, the effect of a larger outlier on the uncertainty bands, and the distribution of the fitted slope and intercept estimates for both the clean and outlier-affected models.
 
-The first plot shows the best-fit line with both the 68% and 95% bootstrap confidence bands in one figure, the second demonstrates larger outliers and how they broaden the uncertainty envelope, and the third/fourth use the Gaussian aggregate summary from ``gauss_agv_err`` to visualize the slope and intercept distributions for the clean and outlier-affected fits.
+The first plot shows the best-fit line with both the 68% and 95% bootstrap confidence bands in one figure, the second demonstrates larger outliers and how they broaden the uncertainty envelope, and the third/fourth use the Gaussian aggregate summary from ``gaussian_aggregate`` to visualize the slope and intercept distributions for the clean and outlier-affected fits.
 
 Calibration Fit
 ---------------
@@ -108,16 +108,17 @@ Source Code
 
 The example demonstrates:
 
-1. **Creating synthetic data** with known true values and random noise
+1. **Computing defaults** with ``fit_defaults`` to derive ``initial_guess``, ``line_max``, and ``line_interval`` from the data
 2. **Running ODR bootstrap** with proper error propagation
 3. **Plotting results** with publication-quality figures
 4. **Extracting statistics** from bootstrap distributions
 5. **Comparing clean and outlier-affected parameter distributions**
 
 See ``examples/example.py`` in the source repository or browse online:
-```
-https://github.com/whtowbin/odr_bootstrap_package/blob/main/examples/example.py
-```
+
+.. code-block:: text
+
+   https://github.com/whtowbin/odr_bootstrap_package/blob/main/examples/example.py
 
 Adapting for Your Data
 ======================
@@ -129,32 +130,37 @@ To use ODR Bootstrap with your own data:
    .. code-block:: python
 
       import numpy as np
-      from odr_bootstrap import ODR_Bootstrap, plot_regression
+      from odr_bootstrap import odr_bootstrap, fit_defaults, plot_regression
 
       x_standards = np.array([...])
       y_measured = np.array([...])
       x_uncertainty = np.array([...])
       y_uncertainty = np.array([...])
 
-2. **Run the fit**
+2. **Derive fitting defaults from your data**
 
    .. code-block:: python
 
-      ls_slope, ls_intercept = np.polyfit(x_standards, y_measured, 1)
-      initial_guess = [ls_slope, ls_intercept]
+      defaults = fit_defaults(x_standards, y_measured)
 
-      confidence_data, params, points, all_params, _ = ODR_Bootstrap(
+3. **Run the fit**
+
+   .. code-block:: python
+
+      confidence_data, params, points, all_params, _ = odr_bootstrap(
           x=x_standards,
           y=y_measured,
           x_err=x_uncertainty,
           y_err=y_uncertainty,
           resample_draws=5000,
-          InterceptFit=True,
-          InitialGuess=initial_guess,
-          Confidence_Bound=0.95,
+          fit_intercept=True,
+          initial_guess=defaults["initial_guess"],
+          line_max=defaults["line_max"],
+          line_interval=defaults["line_interval"],
+          confidence_level=0.95,
       )
 
-3. **Visualize and analyze**
+4. **Visualize and analyze**
 
    .. code-block:: python
 
@@ -177,13 +183,13 @@ Troubleshooting
 
 - Check for outliers in your data
 - Verify uncertainty estimates are realistic
-- Start from a least-squares estimate via ``np.polyfit(x, y, 1)`` and refine from there
-- Increase resample_draws for better bootstrap estimates
+- Call ``fit_defaults(x, y)`` to inspect the least-squares initial guess and confirm it is reasonable for your data range
+- Increase ``resample_draws`` for better bootstrap estimates
 
 **Problem: Slow execution**
 
-- Decrease resample_draws for testing
-- Use smaller LineInterval for plotting
+- Decrease ``resample_draws`` for testing
+- Increase ``line_interval`` to reduce the confidence-interval grid resolution
 - Consider reducing data size or excluding low-quality measurements
 
 **Problem: NaN or Inf in results**

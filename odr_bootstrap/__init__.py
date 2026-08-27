@@ -6,31 +6,33 @@ quantification in both x and y measurements.
 """
 
 from .core import (
-    Bootstrap_fit,
-    Eval_Conf,
-    ODR_Bootstrap,
-    ODR_Linear,
-    ODR_Linear_Test,
-    gauss_agv_err,
-    plot_Calibration_Estimates,
-    plot_datapoints,
+    bootstrap_odr_fit,
+    evaluate_confidence,
+    fit_defaults,
+    fit_odr_linear,
+    fit_odr_linear_debug,
+    gaussian_aggregate,
+    linear_through_origin,
+    linear_with_intercept,
+    odr_bootstrap,
+    plot_calibration_estimates,
+    plot_density,
     plot_regression,
-    slope_func,
-    yint_func,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "Henry Towbin"
 __all__ = [
-    "ODR_Linear",
-    "ODR_Linear_Test",
-    "Bootstrap_fit",
-    "Eval_Conf",
+    "fit_defaults",
+    "fit_odr_linear",
+    "fit_odr_linear_debug",
+    "bootstrap_odr_fit",
+    "evaluate_confidence",
     "plot_regression",
-    "ODR_Bootstrap",
-    "gauss_agv_err",
-    "plot_datapoints",
-    "plot_Calibration_Estimates",
-    "yint_func",
-    "slope_func",
+    "odr_bootstrap",
+    "gaussian_aggregate",
+    "plot_density",
+    "plot_calibration_estimates",
+    "linear_with_intercept",
+    "linear_through_origin",
 ]

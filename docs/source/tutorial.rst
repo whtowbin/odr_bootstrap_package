@@ -102,6 +102,15 @@ Plotting Results
    fig.savefig('calibration_curve.png', dpi=150, bbox_inches='tight')
    plt.show()
 
+The resulting calibration curve includes the fitted line and bootstrap confidence
+bands:
+
+.. figure:: _static/calibration_curve.png
+   :alt: Calibration curve with 68% and 95% bootstrap confidence intervals
+   :width: 100%
+
+   Calibration curve with 68% and 95% bootstrap confidence bands.
+
 Understanding the Return Values
 ================================
 
@@ -153,6 +162,15 @@ slope and intercept are across bootstrap resamples:
    axes[1].set_title("Intercept Distribution")
    fig.tight_layout()
    plt.show()
+
+The parameter distributions provide a direct view of the uncertainty in the fitted
+slope and intercept:
+
+.. figure:: _static/calibration_estimates.png
+   :alt: Bootstrap distributions of the fitted slope and intercept
+   :width: 100%
+
+   Bootstrap distributions of the calibration slope and intercept.
 
 Handling Potential Outliers
 ===========================

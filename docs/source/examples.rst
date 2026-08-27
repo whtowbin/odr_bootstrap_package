@@ -99,6 +99,17 @@ Adapting for Your Data
    slope, intercept = params
    print(f"y = {slope:.2f} * x + {intercept:.2f}")
 
+Complete Example Script
+=======================
+
+The complete script used to generate the figures above is included below. It
+contains the clean calibration fit, the retained potential-outlier sensitivity
+analysis, and the parameter-distribution plots.
+
+.. literalinclude:: ../../examples/example.py
+   :language: python
+   :linenos:
+
 Troubleshooting
 ===============
 

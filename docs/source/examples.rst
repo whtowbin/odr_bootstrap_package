@@ -47,9 +47,10 @@ Outlier Sensitivity
    :alt: Calibration curve with outlier data and dual confidence intervals
    :width: 100%
 
-   Adding two outliers widens the confidence envelope and shifts the fitted line.
-   Comparing this plot against the clean fit makes it easy to spot which points
-   are driving the increased uncertainty.
+   The two additional points are treated as potential outliers and are intentionally
+   retained in the regression. Because they cannot be excluded using an independent
+   criterion, the comparison with the clean fit shows how much they shift the fitted
+   line and increase the confidence envelope.
 
 Outlier-Affected Parameter Distributions
 -----------------------------------------
@@ -58,9 +59,9 @@ Outlier-Affected Parameter Distributions
    :alt: Bootstrap parameter distributions for the outlier-affected dataset
    :width: 100%
 
-   The outlier-affected slope and intercept distributions are broader and may be
-   skewed relative to the clean-data results, reflecting the added uncertainty
-   introduced by the anomalous points.
+   The broader and potentially skewed distributions quantify the effect of retaining
+   the potential outliers. This provides an uncertainty assessment rather than
+   assuming that the points are either unquestionably valid or safe to remove.
 
 Adapting for Your Data
 ======================
@@ -108,6 +109,9 @@ Troubleshooting
 - Call ``fit_defaults(x, y)`` and inspect the ``initial_guess`` to confirm it matches
   your expected slope and intercept.
 - Check for outliers that may be dominating the fit.
+- Do not remove a potential outlier solely because it disagrees with the fitted trend.
+  If there is no independent evidence that it is a bad datapoint, retain it and compare
+  the fit and bootstrap uncertainty with and without the point.
 
 **Slow execution**
 

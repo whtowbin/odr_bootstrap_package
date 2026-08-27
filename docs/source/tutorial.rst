@@ -154,6 +154,25 @@ slope and intercept are across bootstrap resamples:
    fig.tight_layout()
    plt.show()
 
+Handling Potential Outliers
+===========================
+
+A point that appears unusual is not necessarily a bad datapoint. Exclude a point
+from the regression only when there is an independent reason to do so, such as a
+known instrument failure, sample-handling error, or invalid measurement.
+
+When a potential outlier cannot be excluded objectively, retain it in the
+regression. The bootstrap results can then quantify how much the point affects
+the fitted parameters and confidence bands. A useful sensitivity analysis is to
+run the fit both with and without the point and compare:
+
+- the best-fit slope and intercept,
+- the widths of the confidence bands, and
+- the bootstrap distributions of the parameters.
+
+This approach makes the influence of the potential outlier explicit without
+silently treating it as either valid or invalid.
+
 Zero-Intercept Fits
 ===================
 

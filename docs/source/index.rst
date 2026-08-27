@@ -27,9 +27,11 @@ Ordinary least squares regression assumes errors only in y, leading to biased fi
 random subsamples of the calibration data.
 
 This package combines these techniques for publication-ready uncertainty quantification in
-SIMS (Secondary Ion Mass Spectrometry) calibration analysis. It is broadly applicable to other
-types of analytical calibrations and uses of linear regressions. Bootstrapping ensures that the
-fits are not overly skewed by outliers.
+SIMS (Secondary Ion Mass Spectrometry) calibration analysis and other linear regression
+applications. In situations when potential outliers cannot be easily excluded—for example,
+when there is no independent evidence that they are bad measurements—retaining them in the
+regression allows their influence on the fitted parameters and uncertainty to be quantified
+through bootstrap resampling.
 
 Getting Started
 ===============

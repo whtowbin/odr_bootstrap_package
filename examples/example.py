@@ -192,9 +192,9 @@ def main() -> None:
     plt.close(fig)
 
     # =========================================================================
-    # 5. Plot Outlier Sensitivity Example
+    # 5. Plot Sensitivity to Retained Potential Outliers
     # =========================================================================
-    print("\n[5/6] Plotting outlier sensitivity example...")
+    print("\n[5/6] Plotting sensitivity to retained potential outliers...")
 
     fig, ax = plt.subplots(figsize=(10, 6))
     plot_regression(
@@ -217,9 +217,9 @@ def main() -> None:
     plt.close(fig)
 
     # =========================================================================
-    # 6. Plot Outlier-Affected Parameter Distributions
+    # 6. Plot Parameter Uncertainty with Retained Potential Outliers
     # =========================================================================
-    print("\n[6/6] Plotting outlier-affected calibration estimate distributions...")
+    print("\n[6/6] Plotting parameter uncertainty with retained potential outliers...")
 
     outlier_params_array = np.asarray(outlier_params, dtype=float)
     outlier_slopes = outlier_params_array[:, 0]
@@ -239,11 +239,14 @@ def main() -> None:
     outlier_fig, outlier_axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 6))
     plot_density(outlier_slope_dist, outlier_slope_stats, ax=outlier_axes[0])
     plot_density(outlier_intercept_dist, outlier_intercept_stats, ax=outlier_axes[1])
-    outlier_axes[0].set_xlabel("Outlier-affected Slope", fontsize=12)
+    outlier_axes[0].set_xlabel("Slope with Potential Outliers", fontsize=12)
     outlier_axes[0].set_ylabel("Probability", fontsize=12)
-    outlier_axes[1].set_xlabel("Outlier-affected Y-Intercept", fontsize=12)
+    outlier_axes[1].set_xlabel("Y-Intercept with Potential Outliers", fontsize=12)
     outlier_axes[1].set_ylabel("Probability", fontsize=12)
-    outlier_fig.suptitle("Outlier-Affected Calibration Parameter Distributions", fontsize=16)
+    outlier_fig.suptitle(
+        "Parameter Distributions with Retained Potential Outliers",
+        fontsize=16,
+    )
     outlier_fig.tight_layout()
     outlier_fig.savefig(OUTPUT_DIR / "calibration_estimates_outlier.png", dpi=150, bbox_inches="tight")
     outlier_fig.savefig(REPO_ROOT / "calibration_estimates_outlier.png", dpi=150, bbox_inches="tight")

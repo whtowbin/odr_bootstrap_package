@@ -9,6 +9,8 @@
 
 When measurement errors exist in both the independent variable (x, e.g. concentration) and the dependent variable (y, e.g. signal intensity), ordinary least squares gives biased results. **Orthogonal Distance Regression (ODR)** handles errors in both directions, and **bootstrap resampling** turns those fits into honest confidence intervals without relying on analytical approximations.
 
+In situations when potential outliers cannot be easily excluded—for example, when there is no independent evidence that they are bad measurements—it can be useful to retain them in the regression. Comparing results with and without these points helps quantify their influence on the fitted line and its uncertainty.
+
 The package is used for SIMS (Secondary Ion Mass Spectrometry) calibration but applies to any field where both variables carry measurement uncertainty.
 
 ## Installation
@@ -117,13 +119,13 @@ Each histogram shows how the fitted slope and intercept vary across bootstrap re
 
 ![Calibration fit with synthetic outliers and dual confidence bands](https://raw.githubusercontent.com/whtowbin/odr_bootstrap_package/main/calibration_curve_outlier.png)
 
-Adding two outlier points widens the confidence bands and shifts the best-fit line, illustrating how sensitive the fit is to anomalous measurements.
+Including potential outliers in the regression widens the confidence bands and may shift the best-fit line. This illustrates why points that cannot be excluded objectively should be retained: the bootstrap distributions quantify their effect on the fitted parameters and prediction uncertainty.
 
 ### Outlier-affected parameter distributions
 
 ![Outlier-affected slope and intercept distributions](https://raw.githubusercontent.com/whtowbin/odr_bootstrap_package/main/calibration_estimates_outlier.png)
 
-The outliers broaden and shift both distributions. Comparing these to the clean-data distributions makes the outlier influence easy to quantify.
+The potential outliers broaden and shift both distributions. Comparing these to the clean-data distributions makes their influence easy to quantify.
 
 ## Module Functions
 

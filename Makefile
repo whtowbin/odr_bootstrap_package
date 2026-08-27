@@ -1,4 +1,4 @@
-.PHONY: help install sync test test-cov test-install test-all-versions lint type-check format clean build release-check release publish publish-test docs
+.PHONY: help install sync test test-cov test-install test-all-versions lint type-check format clean build release-check prepare-release release publish publish-test docs
 
 help:
 	@echo "ODR Bootstrap Package Management"
@@ -20,6 +20,8 @@ help:
 	@echo "  make build          Build distribution (wheel + sdist)"
 	@echo "  make docs           Build Sphinx docs"
 	@echo "  make release-check  Run full validation before a release"
+	@echo "  make prepare-release  Rebuild examples/docs/images, run tests, and build dist before pushing"
+	@echo "  make prepare-release BUMP=patch   Same, plus bump version (patch|minor|major) and uv.lock"
 	@echo "  make publish-test   Publish to TestPyPI"
 	@echo "  make publish        Publish to PyPI (uses uv publish)"
 	@echo ""
@@ -77,6 +79,9 @@ release-check: clean
 	uv run --extra docs sphinx-build -b html docs/source docs/build/html
 	uv build
 	@echo "Release validation complete."
+
+prepare-release:
+	./scripts/prepare-release.sh $(if $(BUMP),--bump $(BUMP),)$(if $(SET_VERSION), --set-version $(SET_VERSION),)
 
 publish-test: release-check
 	@echo "Publishing to TestPyPI..."

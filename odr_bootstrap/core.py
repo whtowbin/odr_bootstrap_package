@@ -9,11 +9,25 @@ Dependencies
 ------------
 matplotlib
 numpy
+odrpack
 pandas
 scipy
 
 Changelog
 ---------
+August 2026:
+  - Migrated the ODR backend from the deprecated ``scipy.odr`` module to
+    ``odrpack`` (bindings for ODRPACK95, the same Fortran solver
+    ``scipy.odr`` wraps). See
+    https://docs.scipy.org/doc/scipy/reference/odr.html and
+    https://discuss.scientific-python.org/t/rfc-deprecating-scipy-odr/2166/20
+    for background. ``fit_odr_linear`` and ``fit_odr_linear_debug`` now call
+    ``odrpack.odr_fit`` internally; ``fit_odr_linear_debug`` returns an
+    ``odrpack.result.OdrResult`` instead of a ``scipy.odr.Output``. Public
+    return values (``params``, ``param_errors``) and their statistics are
+    unchanged (verified within 2% in
+    ``tests/test_scipy_odrpack_parity.py``).
+
 August 2025:
   - API refactor: all public names now follow PEP 8 snake_case.
   - Added fit_defaults() helper to derive initial_guess, line_max, and
@@ -39,7 +53,8 @@ import pandas as pd
 import scipy.stats as stats
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-from scipy import odr
+from odrpack import odr_fit
+from odrpack.result import OdrResult
 
 
 def _as_float_array(values: np.ndarray | list[float]) -> np.ndarray:
@@ -156,6 +171,20 @@ def fit_defaults(
     }
 
 
+def _odrpack_linear_with_intercept(
+    x: np.ndarray, p: np.ndarray
+) -> np.ndarray:
+    """odrpack-ordered wrapper around ``linear_with_intercept`` (x, beta)."""
+    return linear_with_intercept(p, x)
+
+
+def _odrpack_linear_through_origin(
+    x: np.ndarray, p: np.ndarray
+) -> np.ndarray:
+    """odrpack-ordered wrapper around ``linear_through_origin`` (x, beta)."""
+    return linear_through_origin(p, x)
+
+
 def fit_odr_linear(
     x: np.ndarray | list[float],
     y: np.ndarray | list[float],
@@ -200,18 +229,27 @@ def fit_odr_linear(
     beta0 = list(initial_guess)
     if fit_intercept:
         beta0 = beta0[:2]
-        model = odr.Model(linear_with_intercept)
+        f = _odrpack_linear_with_intercept
     else:
         beta0 = [beta0[0]]
-        model = odr.Model(linear_through_origin)
+        f = _odrpack_linear_through_origin
 
-    data = odr.RealData(x, y, sx=x_err, sy=y_err)
-    myodr = odr.ODR(data, model, beta0=beta0)
-    myodr.set_job(fit_type=0)
-    out = myodr.run()
+    x_arr = _as_float_array(x)
+    y_arr = _as_float_array(y)
+    x_err_arr = _as_float_array(x_err)
+    y_err_arr = _as_float_array(y_err)
 
-    params = np.asarray(out.beta, dtype=float)
-    param_errors = np.asarray(out.sd_beta, dtype=float)
+    sol = odr_fit(
+        f,
+        x_arr,
+        y_arr,
+        beta0,
+        weight_x=1.0 / np.square(x_err_arr),
+        weight_y=1.0 / np.square(y_err_arr),
+    )
+
+    params = np.asarray(sol.beta, dtype=float)
+    param_errors = np.asarray(sol.sd_beta, dtype=float)
     return params, param_errors
 
 
@@ -222,12 +260,12 @@ def fit_odr_linear_debug(
     y_err: np.ndarray | list[float],
     fit_intercept: bool = True,
     initial_guess: list[float] | None = None,
-) -> tuple[np.ndarray, np.ndarray, Any]:
+) -> tuple[np.ndarray, np.ndarray, OdrResult]:
     """
-    Fit a linear model using ODR and return the full scipy ODR output.
+    Fit a linear model using ODR and return the full odrpack output.
 
     Identical to ``fit_odr_linear`` but also returns the raw
-    ``scipy.odr.Output`` object for inspection and diagnostics.
+    ``odrpack.result.OdrResult`` object for inspection and diagnostics.
 
     Parameters
     ----------
@@ -251,7 +289,7 @@ def fit_odr_linear_debug(
     tuple
         params : ndarray
         param_errors : ndarray
-        odr_output : scipy.odr.Output
+        odr_output : odrpack.result.OdrResult
             Full ODR result object for diagnostics.
     """
     if initial_guess is None:
@@ -260,19 +298,28 @@ def fit_odr_linear_debug(
     beta0 = list(initial_guess)
     if fit_intercept:
         beta0 = beta0[:2]
-        model = odr.Model(linear_with_intercept)
+        f = _odrpack_linear_with_intercept
     else:
         beta0 = [beta0[0]]
-        model = odr.Model(linear_through_origin)
+        f = _odrpack_linear_through_origin
 
-    data = odr.RealData(x, y, sx=x_err, sy=y_err)
-    myodr = odr.ODR(data, model, beta0=beta0)
-    myodr.set_job(fit_type=0)
-    out = myodr.run()
+    x_arr = _as_float_array(x)
+    y_arr = _as_float_array(y)
+    x_err_arr = _as_float_array(x_err)
+    y_err_arr = _as_float_array(y_err)
 
-    params = np.asarray(out.beta, dtype=float)
-    param_errors = np.asarray(out.sd_beta, dtype=float)
-    return params, param_errors, out
+    sol = odr_fit(
+        f,
+        x_arr,
+        y_arr,
+        beta0,
+        weight_x=1.0 / np.square(x_err_arr),
+        weight_y=1.0 / np.square(y_err_arr),
+    )
+
+    params = np.asarray(sol.beta, dtype=float)
+    param_errors = np.asarray(sol.sd_beta, dtype=float)
+    return params, param_errors, sol
 
 
 def bootstrap_odr_fit(

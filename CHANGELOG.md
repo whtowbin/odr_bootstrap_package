@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **ODR backend migration**: replaced the deprecated `scipy.odr` module with
+  [`odrpack`](https://pypi.org/project/odrpack/), which provides Python
+  bindings for the same underlying ODRPACK95 Fortran solver `scipy.odr`
+  wraps. See scipy's [ODR deprecation
+  notice](https://docs.scipy.org/doc/scipy/reference/odr.html) and the
+  [RFC discussion](https://discuss.scientific-python.org/t/rfc-deprecating-scipy-odr/2166/20)
+  for background.
+  - `fit_odr_linear` and `fit_odr_linear_debug` now call `odrpack.odr_fit`
+    internally. `fit_odr_linear_debug` now returns an
+    `odrpack.result.OdrResult` instead of a `scipy.odr.Output`.
+  - Fitted parameters, parameter uncertainties, and residual variance are
+    numerically equivalent to the previous `scipy.odr`-based implementation
+    (verified within 2% relative tolerance across the README/tutorial
+    example datasets — see `tests/test_scipy_odrpack_parity.py`).
+  - `scipy` remains a dependency (used for `scipy.stats.rv_histogram` in
+    `evaluate_confidence`); `odrpack` is a new required dependency.
+
 ## [0.2.0] - 2026-08-27
 
 ### Added

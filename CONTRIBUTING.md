@@ -204,8 +204,41 @@ make type-check          # Run mypy type checking
 make format              # Auto-format code
 make build               # Build distribution package
 make docs                # Build Sphinx documentation
+make prepare-release     # Rebuild examples/images/docs, run tests, and build dist (see below)
 make clean               # Remove build artifacts
 ```
+
+### Before pushing / publishing
+
+`scripts/prepare-release.sh` (wired up as `make prepare-release`) runs the
+full "get everything fresh" pipeline with `uv`:
+
+1. `uv sync --all-extras`
+2. `ruff check` and `mypy`
+3. `pytest` (unit tests + coverage) and the `uv`-based installation tests
+4. Re-runs `examples/example.py`, which regenerates
+   `calibration_curve.png`, `calibration_estimates.png`,
+   `calibration_curve_outlier.png`, and `calibration_estimates_outlier.png`
+   in the repo root, `examples/`, and `docs/source/_static/` — keeping the
+   images linked from README.md and the Sphinx docs in sync with the
+   current code
+5. Rebuilds the Sphinx documentation (`docs/build/html`)
+6. Builds the sdist/wheel with `uv build` (`dist/`)
+7. Prints `git status --short` so you can review exactly what changed
+   before committing
+
+```bash
+make prepare-release
+# or directly, with options:
+./scripts/prepare-release.sh --skip-install-tests   # skip the slow uv-venv tests
+./scripts/prepare-release.sh --skip-tests           # only rebuild examples/docs/dist
+./scripts/prepare-release.sh --skip-docs            # skip the Sphinx build
+./scripts/prepare-release.sh --skip-examples        # skip regenerating figures
+./scripts/prepare-release.sh --skip-build           # skip `uv build`
+```
+
+Review the `git status` output (regenerated PNGs and any doc/code changes)
+before committing and pushing.
 
 ## Documentation
 

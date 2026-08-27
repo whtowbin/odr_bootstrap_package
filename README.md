@@ -176,6 +176,7 @@ The potential outliers broaden and shift both distributions. Comparing these to 
 - Python >= 3.11
 - numpy >= 2.2.4
 - scipy >= 1.15.2
+- odrpack >= 0.6.1
 - pandas >= 2.2.3
 - matplotlib >= 3.10.1
 

@@ -147,3 +147,4 @@ docs/build/
 odr_bootstrap/assets/
 scripts/*
 !scripts/test-all-python-versions.sh
+!scripts/prepare-release.sh

@@ -4,10 +4,16 @@ build:
   os: ubuntu-24.04
   tools:
     python: "3.12"
-  jobs:
-    install:
-      - pip install uv
-      - uv sync --extra docs
+
+# Install the package and its documentation dependencies into RTD's Python.
+# Using the standard pip mechanism ensures sphinx runs with the same Python
+# that has odrpack, sphinx, and all other deps available.
+python:
+  install:
+    - method: pip
+      path: .
+      extra_requirements:
+        - docs
 
 sphinx:
   configuration: docs/source/conf.py

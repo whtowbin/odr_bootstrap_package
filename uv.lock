@@ -1204,7 +1204,6 @@ dev = [
     { name = "ruff" },
 ]
 docs = [
-    { name = "great-tables" },
     { name = "myst-parser" },
     { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "sphinx", version = "9.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
@@ -1222,7 +1221,6 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "great-tables", marker = "extra == 'docs'", specifier = ">=0.10.0" },
     { name = "great-tables", marker = "extra == 'examples'", specifier = ">=0.10.0" },
     { name = "matplotlib", specifier = ">=3.10.1" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10.0" },

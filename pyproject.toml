@@ -48,7 +48,6 @@ docs = [
     "sphinx-rtd-theme>=2.0.0",
     "sphinx-autodoc-typehints>=2.0.0",
     "myst-parser>=4.0.0",
-    "great-tables>=0.10.0",
 ]
 examples = [
     "great-tables>=0.10.0",

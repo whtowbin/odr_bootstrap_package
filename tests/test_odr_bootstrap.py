@@ -401,6 +401,22 @@ class TestPlottingFunctions(unittest.TestCase):
         self.assertTrue(isinstance(ax, plt.Axes))
         plt.close()
 
+    def test_plot_density_xlabel_default(self):
+        concentrations = np.array([100.0, 105.0, 98.0])
+        errors = np.array([5.0, 6.0, 4.0])
+        dist, stats_dict = gaussian_aggregate(concentrations, errors)
+        ax = plot_density(dist, stats_dict)
+        self.assertEqual(ax.get_xlabel(), "Value")
+        plt.close()
+
+    def test_plot_density_xlabel_custom(self):
+        concentrations = np.array([100.0, 105.0, 98.0])
+        errors = np.array([5.0, 6.0, 4.0])
+        dist, stats_dict = gaussian_aggregate(concentrations, errors)
+        ax = plot_density(dist, stats_dict, xlabel="Calibration Slope")
+        self.assertEqual(ax.get_xlabel(), "Calibration Slope")
+        plt.close()
+
     def test_plot_calibration_estimates_returns_figure(self):
         fit_params = np.array([[100, 5], [105, 8], [98, 6]])
         fit_error = np.array([[5, 1], [6, 1.5], [4, 0.8]])

@@ -69,7 +69,8 @@ build: clean
 
 regen-examples:
 	uv run --extra examples python examples/example.py
-	@echo "Example artifacts regenerated: calibration plots and unknown_concentrations.html"
+	uv run --extra examples python examples/calibration_application_example.py
+	@echo "Example artifacts regenerated: calibration plots and HTML tables"
 
 docs: regen-examples
 	uv run --extra docs sphinx-build -b html docs/source docs/build/html

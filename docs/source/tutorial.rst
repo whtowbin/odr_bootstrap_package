@@ -173,108 +173,159 @@ slope and intercept:
    Bootstrap distributions of the calibration slope and intercept.
 
 Applying the Calibration to New Data
-====================================
+=====================================
 
-After the calibration is fitted, you can use the bootstrap distribution to apply
-those results to new measurements. The default behavior treats the incoming values
-as x-values and returns the corresponding calibrated y-values, while
-``variable='y'`` inverts the relationship and converts measured y values back to
-x-values.
+After the calibration is fitted, :func:`~odr_bootstrap.apply_calibration`
+applies that fitted model to new measurements and propagates the full bootstrap
+uncertainty into confidence intervals on each estimate.
 
-.. code-block:: python
+The complete runnable example lives in
+``examples/calibration_application_example.py``.
 
-   from odr_bootstrap import apply_calibration, apply_calibration_y
+Calibration axis convention
+----------------------------
 
-   unknown_x = np.array([0.25, 0.75, 2.5])
-   calibrated_y = apply_calibration(
-       unknown_x,
-       all_params,
-       fit_intercept=True,
-       variable="x",
-       confidence_levels=(0.68, 0.95),
-   )
+For a SIMS-style calibration the natural choice is to place the measured ion
+count rate on the x-axis and the known concentration on the y-axis:
 
-   unknown_signal = np.array([120.0, 450.0, 900.0])
-   estimated_x = apply_calibration_y(
-       unknown_signal,
-       all_params,
-       fit_intercept=True,
-       confidence_levels=(68, 95),
-   )
+.. code-block:: text
 
-   print(calibrated_y[["input_value", "best_fit", "median", "neg_ci_68", "pos_ci_95"]])
-   print(estimated_x[["input_value", "best_fit", "median", "neg_ci_68", "pos_ci_95"]])
+    concentration (ppm) = slope × count rate (counts) + intercept
 
-The returned DataFrame includes the input value, the best-fit estimate, the
-median estimate, and the requested confidence intervals. The helper accepts
-scalar or array-like inputs and uses the lowest-order polynomial that stays within
-5% RMSE of the best-performing error-surface fit when approximating the
-confidence bounds.
+With this convention ``apply_calibration(variable="x")`` converts an unknown
+count rate directly into a concentration estimate — no inversion required.
 
-A common analytical-calibration use case is converting unknown ion intensities
-into concentration values in ppm. The Great Tables package is particularly useful
-for creating a polished display table for reporting or a lab notebook. The
-example table below is generated from ``examples/example.py`` and saved to the
-built docs as a static HTML artifact.
-
-.. raw:: html
-
-   <iframe src="_static/unknown_concentrations.html" style="width: 100%; min-height: 420px; border: 0; margin-top: 1rem; margin-bottom: 1rem;"></iframe>
+Setting up the calibration
+--------------------------
 
 .. code-block:: python
 
     import numpy as np
-    from great_tables import GT, md
-    from odr_bootstrap import apply_calibration_y
+    from odr_bootstrap import odr_bootstrap, fit_defaults, apply_calibration
 
-    unknown_counts = np.array([150.0, 430.0, 910.0, 1600.0])
-    unknown_conc = apply_calibration_y(
+    # SIMS calibration standards
+    # x = measured count rate from reference standards
+    # y = known concentration of those standards
+    x_counts      = np.array([62,   117,  223,   528,   1014,  2001])   # count rate
+    y_conc        = np.array([0.5,  1.0,  2.0,   5.0,   10.0,  20.0])   # ppm
+    x_uncertainty = np.array([15,   20,   25,    40,     60,    80])     # counting σ
+    y_uncertainty = y_conc * 0.02                                         # 2 % of concentration
+
+    defaults = fit_defaults(x_counts, y_conc, fit_intercept=True)
+
+    confidence_data, best_fit_params, points, all_params, _ = odr_bootstrap(
+        x=x_counts,
+        y=y_conc,
+        x_err=x_uncertainty,
+        y_err=y_uncertainty,
+        resample_draws=2000,
+        fit_intercept=True,
+        initial_guess=defaults["initial_guess"],
+        confidence_level=0.95,
+        line_max=defaults["line_max"],
+        line_interval=defaults["line_interval"],
+    )
+
+    slope, intercept = best_fit_params
+    # Best-fit slope: ~0.00999 ppm / count
+    # Best-fit intercept: ~-0.158 ppm
+
+Converting unknown count rates to concentration
+-----------------------------------------------
+
+Pass the unknown count rates directly to
+:func:`~odr_bootstrap.apply_calibration` with ``variable="x"``:
+
+.. code-block:: python
+
+    unknown_counts = np.array([150.0, 430.0, 850.0, 1600.0])   # measured counts
+    results = apply_calibration(
         unknown_counts,
         all_params,
+        variable="x",
         fit_intercept=True,
         confidence_levels=(0.68, 0.95),
     )
+    print(results.to_string(float_format="{:.3f}".format, index=False))
 
-    unknown_conc = unknown_conc.rename(
-        columns={
-            "input_value": "Ion intensity (counts)",
-            "best_fit": "Estimated concentration (ppm)",
-            "median": "Median concentration (ppm)",
-            "neg_ci_68": "Lower 68% CI (ppm)",
-            "pos_ci_68": "Upper 68% CI (ppm)",
-            "neg_ci_95": "Lower 95% CI (ppm)",
-            "pos_ci_95": "Upper 95% CI (ppm)",
-        }
-    )
-    unknown_conc.insert(0, "Sample ID", [f"Unknown {i + 1}" for i in range(len(unknown_conc))])
+Example output::
 
-    summary_table = (
-        GT(unknown_conc, rowname_col="Sample ID")
+     input_value  best_fit  median  neg_ci_68  pos_ci_68  neg_ci_95  pos_ci_95
+         150.000     1.340   1.337      1.289      1.359      1.232      1.376
+         430.000     4.137   4.126      4.078      4.158      3.994      4.180
+         850.000     8.333   8.328      8.241      8.368      8.039      8.397
+        1600.000    15.825  15.838     15.642     15.912     15.230     15.941
+
+The columns are:
+
+- **input_value** — the measured count rate you supplied.
+- **best_fit** — concentration predicted from the best-fit line.
+- **median** — median of all bootstrap estimates for that count rate.
+- **neg_ci_68 / pos_ci_68** — lower and upper bounds of the 68 % CI.
+- **neg_ci_95 / pos_ci_95** — lower and upper bounds of the 95 % CI.
+
+Rendering the results with Great Tables
+----------------------------------------
+
+The `great_tables <https://pypi.org/project/great_tables/>`_ package creates publication-ready HTML tables from
+the DataFrames returned by the calibration helpers.  It is an optional
+dependency (install with ``uv sync --extra examples``).
+
+.. code-block:: python
+
+    from great_tables import GT, md
+
+    display = results.copy()
+    display.insert(0, "Sample ID", [f"Unknown {i+1}" for i in range(len(display))])
+    display = display.rename(columns={
+        "input_value": "Count rate (counts)",
+        "best_fit":    "Best-fit conc. (ppm)",
+        "median":      "Median conc. (ppm)",
+        "neg_ci_68":   "Lower 68 % CI (ppm)",
+        "pos_ci_68":   "Upper 68 % CI (ppm)",
+        "neg_ci_95":   "Lower 95 % CI (ppm)",
+        "pos_ci_95":   "Upper 95 % CI (ppm)",
+    })
+
+    tbl = (
+        GT(display, rowname_col="Sample ID")
         .tab_header(
             title="Unknown sample concentrations",
-            subtitle="Ion intensity to concentration estimates using the bootstrap calibration",
+            subtitle="Count rate converted to concentration (ppm) using the bootstrap calibration",
         )
+        .fmt_number(columns=["Count rate (counts)"], decimals=0)
         .fmt_number(
             columns=[
-                "Ion intensity (counts)",
-                "Estimated concentration (ppm)",
-                "Median concentration (ppm)",
-                "Lower 68% CI (ppm)",
-                "Upper 68% CI (ppm)",
-                "Lower 95% CI (ppm)",
-                "Upper 95% CI (ppm)",
+                "Best-fit conc. (ppm)", "Median conc. (ppm)",
+                "Lower 68 % CI (ppm)", "Upper 68 % CI (ppm)",
+                "Lower 95 % CI (ppm)", "Upper 95 % CI (ppm)",
             ],
             decimals=2,
         )
-        .tab_source_note(
-            source_note=md("Calibration generated with ODR Bootstrap and propagated uncertainty.")
+        .tab_spanner(
+            label="68 % CI (ppm)",
+            columns=["Lower 68 % CI (ppm)", "Upper 68 % CI (ppm)"],
         )
+        .tab_spanner(
+            label="95 % CI (ppm)",
+            columns=["Lower 95 % CI (ppm)", "Upper 95 % CI (ppm)"],
+        )
+        .tab_source_note(source_note=md(
+            "Calibration fit: **concentration (ppm) = slope × count rate + intercept**. "
+            "Confidence intervals propagated from 2000 bootstrap resamples."
+        ))
     )
 
-    print(summary_table.as_raw_html())
+    tbl.show()           # renders inline in Jupyter
+    tbl.as_raw_html()    # returns HTML string
 
-This is a convenient way to turn a calibration result into a publication-ready
-summary table for unknown samples.
+The example script saves the rendered table as a static HTML file:
+
+.. raw:: html
+
+   <iframe src="_static/calibration_results.html"
+           style="width:100%;min-height:420px;border:0;margin:1rem 0">
+   </iframe>
 
 Handling Potential Outliers
 ===========================

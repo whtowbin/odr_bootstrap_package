@@ -119,6 +119,7 @@ if [ "$SKIP_EXAMPLES" -eq 0 ]; then
     # docs/source/_static/ (see OUTPUT_DIR / DOCS_STATIC_DIR in the script),
     # keeping README.md and the Sphinx docs in sync with the current code.
     uv run python examples/example.py
+    uv run --extra examples python examples/calibration_application_example.py
 else
     echo "Skipping example regeneration (--skip-examples)"
 fi

@@ -28,7 +28,7 @@ August 2026:
     unchanged (verified within 2% in
     ``tests/test_scipy_odrpack_parity.py``).
 
-August 2025:
+August 2026:
   - API refactor: all public names now follow PEP 8 snake_case.
   - Added fit_defaults() helper to derive initial_guess, line_max, and
     line_interval automatically from data via a least-squares pre-fit.
@@ -39,18 +39,18 @@ August 2025:
   - line_max / line_interval are now required in evaluate_confidence;
     odr_bootstrap auto-derives them when None.
 
-April 2025:
+April 2026:
   - Fixed zero-intercept ODR initialization: properly wrap slope-only
     initial guess in list for scipy.odr compatibility.
   - Updated deprecated np.trapz to np.trapezoid for scipy 1.15+ compatibility.
 """
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import scipy.stats as stats
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from odrpack import odr_fit
@@ -185,6 +185,95 @@ def _odrpack_linear_through_origin(
     return linear_through_origin(p, x)
 
 
+def _run_odr_fit(
+    x: np.ndarray | list[float],
+    y: np.ndarray | list[float],
+    x_err: np.ndarray | list[float],
+    y_err: np.ndarray | list[float],
+    fit_intercept: bool,
+    initial_guess: list[float] | None,
+) -> tuple[np.ndarray, np.ndarray, OdrResult]:
+    """Shared ODR setup, execution, and result extraction.
+
+    Selects the model function, validates the initial guess, calls ``odr_fit``,
+    and returns the fitted parameters, their standard deviations, and the raw
+    ``OdrResult`` object.  Called by both ``fit_odr_linear`` and
+    ``fit_odr_linear_debug``.
+    """
+    if initial_guess is None:
+        initial_guess = fit_defaults(x, y, fit_intercept=fit_intercept)["initial_guess"]
+
+    beta0 = list(initial_guess)
+    if fit_intercept:
+        beta0 = beta0[:2]
+        f = _odrpack_linear_with_intercept
+    else:
+        beta0 = [beta0[0]]
+        f = _odrpack_linear_through_origin
+
+    x_arr = _as_float_array(x)
+    y_arr = _as_float_array(y)
+    x_err_arr = _as_float_array(x_err)
+    y_err_arr = _as_float_array(y_err)
+
+    sol = odr_fit(
+        f,
+        x_arr,
+        y_arr,
+        beta0,
+        weight_x=1.0 / np.square(x_err_arr),
+        weight_y=1.0 / np.square(y_err_arr),
+    )
+
+    params = np.asarray(sol.beta, dtype=float)
+    param_errors = np.asarray(sol.sd_beta, dtype=float)
+    return params, param_errors, sol
+
+
+# ── Module-level helpers for gaussian_aggregate ──────────────────────────────
+
+def _gaussian(
+    x_values: np.ndarray,
+    sigma: np.ndarray | float,
+    avg: np.ndarray | float,
+) -> np.ndarray:
+    """Evaluate a normalised Gaussian at ``x_values``."""
+    sigma_arr = np.asarray(sigma, dtype=float)
+    avg_arr = np.asarray(avg, dtype=float)
+    return np.asarray(
+        (1.0 / (sigma_arr * np.sqrt(2.0 * np.pi)))
+        * np.exp(-0.5 * ((x_values - avg_arr) / sigma_arr) ** 2),
+        dtype=float,
+    )
+
+
+def _ci_bound(xi: np.ndarray, data: np.ndarray, bound_fraction: float) -> float:
+    """Return the x-value at which the cumulative density reaches *bound_fraction*."""
+    cumulative = np.cumsum(data)
+    index = np.searchsorted(cumulative, bound_fraction, side="left")
+    if index >= len(xi):
+        raise ValueError("Could not locate the requested confidence bound.")
+    return float(round(xi[index], 2))
+
+
+def _density_range(
+    avgs: np.ndarray | list[float], sigmas: np.ndarray | list[float]
+) -> tuple[float, float]:
+    """Compute a wide x-range that covers the combined Gaussian mixture."""
+    avg_arr = np.asarray(avgs, dtype=float)
+    sigma_arr = np.asarray(sigmas, dtype=float)
+    valid = np.isfinite(avg_arr) & np.isfinite(sigma_arr) & (sigma_arr > 0)
+    if not np.any(valid):
+        raise ValueError(
+            "Input concentrations and errors must contain finite positive values."
+        )
+    avg_arr = avg_arr[valid]
+    sigma_arr = sigma_arr[valid]
+    lower = float(np.percentile(avg_arr, 0.5) - 6.0 * np.percentile(sigma_arr, 99.0))
+    upper = float(np.percentile(avg_arr, 99.5) + 6.0 * np.percentile(sigma_arr, 99.0))
+    return lower, upper
+
+
 def fit_odr_linear(
     x: np.ndarray | list[float],
     y: np.ndarray | list[float],
@@ -223,33 +312,9 @@ def fit_odr_linear(
         param_errors : ndarray
             1-sigma uncertainty array.
     """
-    if initial_guess is None:
-        initial_guess = fit_defaults(x, y, fit_intercept=fit_intercept)["initial_guess"]
-
-    beta0 = list(initial_guess)
-    if fit_intercept:
-        beta0 = beta0[:2]
-        f = _odrpack_linear_with_intercept
-    else:
-        beta0 = [beta0[0]]
-        f = _odrpack_linear_through_origin
-
-    x_arr = _as_float_array(x)
-    y_arr = _as_float_array(y)
-    x_err_arr = _as_float_array(x_err)
-    y_err_arr = _as_float_array(y_err)
-
-    sol = odr_fit(
-        f,
-        x_arr,
-        y_arr,
-        beta0,
-        weight_x=1.0 / np.square(x_err_arr),
-        weight_y=1.0 / np.square(y_err_arr),
+    params, param_errors, _ = _run_odr_fit(
+        x, y, x_err, y_err, fit_intercept, initial_guess
     )
-
-    params = np.asarray(sol.beta, dtype=float)
-    param_errors = np.asarray(sol.sd_beta, dtype=float)
     return params, param_errors
 
 
@@ -288,38 +353,13 @@ def fit_odr_linear_debug(
     -------
     tuple
         params : ndarray
+            Fitted parameter array.
         param_errors : ndarray
+            1-sigma uncertainty array.
         odr_output : odrpack.result.OdrResult
             Full ODR result object for diagnostics.
     """
-    if initial_guess is None:
-        initial_guess = fit_defaults(x, y, fit_intercept=fit_intercept)["initial_guess"]
-
-    beta0 = list(initial_guess)
-    if fit_intercept:
-        beta0 = beta0[:2]
-        f = _odrpack_linear_with_intercept
-    else:
-        beta0 = [beta0[0]]
-        f = _odrpack_linear_through_origin
-
-    x_arr = _as_float_array(x)
-    y_arr = _as_float_array(y)
-    x_err_arr = _as_float_array(x_err)
-    y_err_arr = _as_float_array(y_err)
-
-    sol = odr_fit(
-        f,
-        x_arr,
-        y_arr,
-        beta0,
-        weight_x=1.0 / np.square(x_err_arr),
-        weight_y=1.0 / np.square(y_err_arr),
-    )
-
-    params = np.asarray(sol.beta, dtype=float)
-    param_errors = np.asarray(sol.sd_beta, dtype=float)
-    return params, param_errors, sol
+    return _run_odr_fit(x, y, x_err, y_err, fit_intercept, initial_guess)
 
 
 def bootstrap_odr_fit(
@@ -362,9 +402,6 @@ def bootstrap_odr_fit(
         subsamples : list of DataFrame
             Resampled DataFrames used for each bootstrap iteration.
     """
-    def resample(count: int) -> np.ndarray:
-        return np.random.randint(0, count, count)
-
     data = np.array([x, x_err, y, y_err]).T
     df = pd.DataFrame(data, columns=["x", "x_err", "y", "y_err"])
     df.dropna(inplace=True)
@@ -390,8 +427,10 @@ def bootstrap_odr_fit(
     fit_params = [opt]
     subsamples = []
 
+    rng = np.random.default_rng()
     for _ in range(resample_draws):
-        sub = df.take(resample(length))
+        indices = rng.choice(length, size=length, replace=True)
+        sub = df.iloc[indices]
         opt, _ = fit_odr_linear(
             x=sub["x"],
             y=sub["y"],
@@ -466,20 +505,20 @@ def evaluate_confidence(
     if len(x) == 0:
         x = np.array([0.0])
 
-    evaluated = [fit_func(row, x) for row in fit_params]
-    bootstrap_samples = pd.DataFrame(evaluated)
+    # Stack all bootstrap predictions into shape (n_bootstrap, n_grid) and
+    # compute quantiles along the sample axis — no per-column histogram needed.
+    evaluated = np.asarray(
+        [fit_func(row, x) for row in fit_params], dtype=float
+    )  # (n_bootstrap, n_grid)
 
-    confidence_ints = []
-    for _, col in bootstrap_samples.items():
-        histrange = (np.nanmin(col), np.nanmax(col))
-        hist = np.histogram(col, bins=400, range=histrange)
-        conf_int = stats.rv_histogram(hist).interval(confidence_level)
-        confidence_ints.append(conf_int)
+    lower_q = (1.0 - confidence_level) / 2.0
+    upper_q = 1.0 - lower_q
+    neg_bound, pos_bound = np.quantile(evaluated, [lower_q, upper_q], axis=0)
 
     results = pd.DataFrame(
-        confidence_ints, columns=("neg_error_bound", "pos_error_bound")
+        {"neg_error_bound": neg_bound, "pos_error_bound": pos_bound},
+        index=x,
     )
-    results.index = x
     results["best_fit"] = evaluated[0]
     results["percent_error_neg"] = (
         results["best_fit"] - results["neg_error_bound"]
@@ -522,7 +561,12 @@ def _fit_polynomial_surface(
     max_order: int = 5,
     tolerance: float = 0.05,
 ) -> tuple[np.ndarray, int]:
-    """Choose the lowest-order polynomial within 5% RMSE of the best fit."""
+    """Choose the lowest-order polynomial within 5% RMSE of the best fit.
+
+    Fits polynomials of degree 1 through *max_order* once, caching the
+    coefficients and RMSE for each degree, then selects the lowest degree
+    whose RMSE is within *tolerance* of the best observed RMSE.
+    """
     x_arr = np.asarray(x, dtype=float)
     y_arr = np.asarray(y, dtype=float)
     valid = np.isfinite(x_arr) & np.isfinite(y_arr)
@@ -533,30 +577,25 @@ def _fit_polynomial_surface(
         raise ValueError("At least 2 finite points are required to fit a polynomial surface.")
 
     max_order = max(1, min(int(max_order), len(x_arr) - 1))
-    best_rmse = np.inf
-    best_coeffs = None
-    best_order = 1
 
+    # Single pass: compute (coeffs, rmse) for every candidate degree.
+    candidates: list[tuple[np.ndarray, float]] = []
+    best_rmse = np.inf
     for order in range(1, max_order + 1):
         coeffs = np.polyfit(x_arr, y_arr, deg=order)
-        prediction = np.polyval(coeffs, x_arr)
-        rmse = float(np.sqrt(np.mean((prediction - y_arr) ** 2)))
+        rmse = float(np.sqrt(np.mean((np.polyval(coeffs, x_arr) - y_arr) ** 2)))
+        candidates.append((coeffs, rmse))
         if rmse < best_rmse:
             best_rmse = rmse
-            best_coeffs = coeffs
-            best_order = order
 
-    if best_coeffs is None:
-        raise ValueError("Unable to fit a polynomial surface to the provided data.")
-
-    for order in range(1, max_order + 1):
-        coeffs = np.polyfit(x_arr, y_arr, deg=order)
-        prediction = np.polyval(coeffs, x_arr)
-        rmse = float(np.sqrt(np.mean((prediction - y_arr) ** 2)))
+    # Select the lowest-degree fit whose RMSE is within tolerance of the best.
+    for order_idx, (coeffs, rmse) in enumerate(candidates):
         if rmse <= best_rmse * (1.0 + tolerance):
-            return coeffs, order
+            return coeffs, order_idx + 1
 
-    return best_coeffs, best_order
+    # Fallback: return the best-RMSE fit (should not normally be reached).
+    best_idx = int(np.argmin([r for _, r in candidates]))
+    return candidates[best_idx][0], best_idx + 1
 
 
 def _evaluate_model_parameter_vector(
@@ -598,6 +637,74 @@ def _invert_model_parameter_vector(
     if np.isclose(slope, 0.0):
         raise ValueError("Unable to invert a calibration with a zero slope.")
     return y_arr / slope
+
+
+def _validate_calibration_inputs(
+    fit_params: Sequence[np.ndarray | list[float]],
+    fit_intercept: bool,
+    variable: str,
+) -> tuple[np.ndarray, str]:
+    """Validate ``apply_calibration`` inputs; return (best_params, variable)."""
+    if not fit_params:
+        raise ValueError("fit_params must contain at least one parameter vector.")
+    best_params = np.asarray(fit_params[0], dtype=float)
+    expected_len = 2 if fit_intercept else 1
+    kind = "Intercept" if fit_intercept else "Zero-intercept"
+    desc = "slope and intercept" if fit_intercept else "slope"
+    if len(best_params) != expected_len:
+        raise ValueError(
+            f"{kind} fits require exactly {expected_len} parameter(s): {desc}."
+        )
+    variable = str(variable).lower()
+    if variable not in {"x", "y"}:
+        raise ValueError("variable must be either 'x' or 'y'.")
+    return best_params, variable
+
+
+def _resolve_grid_params(
+    values_arr: np.ndarray,
+    line_max: int | float | None,
+    line_interval: int | float | None,
+) -> tuple[float, float]:
+    """Return validated (line_max, line_interval) for the confidence-surface grid."""
+    if line_max is None:
+        line_max = float(np.max(np.abs(values_arr))) * 1.1 if np.size(values_arr) else 1.0
+        if not np.isfinite(line_max) or line_max <= 0:
+            line_max = 1.0
+    if line_interval is None:
+        line_interval = max(float(line_max) / 1000.0, 1e-6)
+    if line_interval <= 0:
+        raise ValueError("line_interval must be positive.")
+    return float(line_max), float(line_interval)
+
+
+def _build_ci_rows(
+    target_values: np.ndarray,
+    best_fit: np.ndarray,
+    median_values: np.ndarray,
+    confidence_levels: tuple[float, ...],
+    surface_rows: dict[str, np.ndarray],
+    variable: str,
+) -> list[dict[str, float]]:
+    """Build the per-row result dicts for ``apply_calibration``."""
+    rows: list[dict[str, float]] = []
+    for idx, value in enumerate(target_values):
+        row: dict[str, float] = {
+            "input_value": float(value),
+            "best_fit": float(best_fit[idx]),
+            "median": float(median_values[idx]),
+        }
+        for level in confidence_levels:
+            label = f"{level:.2f}"
+            eval_at = value if variable == "x" else best_fit[idx]
+            row[f"neg_ci_{int(round(level * 100))}"] = float(
+                np.polyval(surface_rows[f"neg_{label}_poly"], eval_at)
+            )
+            row[f"pos_ci_{int(round(level * 100))}"] = float(
+                np.polyval(surface_rows[f"pos_{label}_poly"], eval_at)
+            )
+        rows.append(row)
+    return rows
 
 
 def apply_calibration(
@@ -654,116 +761,73 @@ def apply_calibration(
     if scalar_input:
         values_arr = values_arr.reshape(1)
 
-    if len(fit_params) == 0:
-        raise ValueError("fit_params must contain at least one parameter vector.")
-
-    best_params = np.asarray(fit_params[0], dtype=float)
-    if fit_intercept:
-        if len(best_params) != 2:
-            raise ValueError("Intercept fits require exactly 2 parameters: slope and intercept.")
-    else:
-        if len(best_params) != 1:
-            raise ValueError("Zero-intercept fits require exactly 1 parameter: slope.")
-
-    variable = str(variable).lower()
-    if variable not in {"x", "y"}:
-        raise ValueError("variable must be either 'x' or 'y'.")
-
+    best_params, variable = _validate_calibration_inputs(fit_params, fit_intercept, variable)
     confidence_levels = _validate_confidence_levels(confidence_levels)
-    if line_max is None:
-        line_max = float(np.max(np.abs(values_arr))) * 1.1 if np.size(values_arr) else 1.0
-        if not np.isfinite(line_max) or line_max <= 0:
-            line_max = 1.0
-    if line_interval is None:
-        line_interval = max(float(line_max) / 1000.0, 1e-6)
-    if line_interval <= 0:
-        raise ValueError("line_interval must be positive.")
+    line_max, line_interval = _resolve_grid_params(values_arr, line_max, line_interval)
 
-    x_grid = np.linspace(0.0, float(line_max), max(2, int(round(float(line_max) / float(line_interval))) + 1))
+    x_grid = np.linspace(
+        0.0, line_max,
+        max(2, int(round(line_max / line_interval)) + 1),
+    )
 
     if variable == "x":
-        base_values = x_grid
-        fitted_values = [
-            _evaluate_model_parameter_vector(params, base_values, fit_intercept=fit_intercept)
-            for params in fit_params
-        ]
-        true_values = np.asarray(fitted_values[0], dtype=float)
+        fitted_arr = np.asarray(
+            [_evaluate_model_parameter_vector(p, x_grid, fit_intercept=fit_intercept)
+             for p in fit_params],
+            dtype=float,
+        )
     else:
         base_values = np.asarray(
             _evaluate_model_parameter_vector(best_params, x_grid, fit_intercept=fit_intercept),
             dtype=float,
         )
-        fitted_values = [
-            _invert_model_parameter_vector(params, base_values, fit_intercept=fit_intercept)
-            for params in fit_params
-        ]
-        true_values = np.asarray(fitted_values[0], dtype=float)
+        fitted_arr = np.asarray(
+            [_invert_model_parameter_vector(p, base_values, fit_intercept=fit_intercept)
+             for p in fit_params],
+            dtype=float,
+        )
 
+    # CI bounds: vectorised quantile across the bootstrap axis.
     bounds: dict[str, np.ndarray] = {}
     for level in confidence_levels:
-        lower_bound = np.empty_like(true_values, dtype=float)
-        upper_bound = np.empty_like(true_values, dtype=float)
-        for idx in range(len(true_values)):
-            sample_values = np.asarray([surface[idx] for surface in fitted_values], dtype=float)
-            lower_bound[idx] = float(np.quantile(sample_values, (1.0 - level) / 2.0))
-            upper_bound[idx] = float(np.quantile(sample_values, 1.0 - (1.0 - level) / 2.0))
-        bounds[f"neg_{level:.2f}"] = lower_bound
-        bounds[f"pos_{level:.2f}"] = upper_bound
+        lower_q = (1.0 - level) / 2.0
+        lb, ub = np.quantile(fitted_arr, [lower_q, 1.0 - lower_q], axis=0)
+        bounds[f"neg_{level:.2f}"] = lb
+        bounds[f"pos_{level:.2f}"] = ub
 
-    surface_rows: dict[str, np.ndarray] = {}
-    for label, arr in bounds.items():
-        raw_coeffs, _ = _fit_polynomial_surface(x_grid, arr, max_order=max_poly_order)
-        surface_rows[f"{label}_poly"] = raw_coeffs
+    surface_rows: dict[str, np.ndarray] = {
+        f"{label}_poly": _fit_polynomial_surface(x_grid, arr, max_order=max_poly_order)[0]
+        for label, arr in bounds.items()
+    }
 
+    # Best-fit and bootstrap median at target values.
     target_values = np.asarray(values_arr, dtype=float)
-    best_fit = np.asarray(
-        [
-            _evaluate_model_parameter_vector(best_params, value, fit_intercept=fit_intercept)
-            if variable == "x"
-            else _invert_model_parameter_vector(best_params, value, fit_intercept=fit_intercept)
-            for value in target_values
-        ],
-        dtype=float,
-    )
-
     bootstrap_params = fit_params[1:] if len(fit_params) > 1 else [best_params]
-    median_values = np.asarray(
-        [
-            np.median(
-                np.asarray(
-                    [
-                        _evaluate_model_parameter_vector(params, value, fit_intercept=fit_intercept)
-                        if variable == "x"
-                        else _invert_model_parameter_vector(params, value, fit_intercept=fit_intercept)
-                        for params in bootstrap_params
-                    ],
-                    dtype=float,
-                )
-            )
-            for value in target_values
-        ],
-        dtype=float,
+    if variable == "x":
+        best_fit = np.asarray(
+            _evaluate_model_parameter_vector(best_params, target_values, fit_intercept=fit_intercept),
+            dtype=float,
+        )
+        bootstrap_arr = np.asarray(
+            [_evaluate_model_parameter_vector(p, target_values, fit_intercept=fit_intercept)
+             for p in bootstrap_params],
+            dtype=float,
+        )
+    else:
+        best_fit = np.asarray(
+            _invert_model_parameter_vector(best_params, target_values, fit_intercept=fit_intercept),
+            dtype=float,
+        )
+        bootstrap_arr = np.asarray(
+            [_invert_model_parameter_vector(p, target_values, fit_intercept=fit_intercept)
+             for p in bootstrap_params],
+            dtype=float,
+        )
+
+    median_values = np.median(bootstrap_arr, axis=0)
+    rows = _build_ci_rows(
+        target_values, best_fit, median_values, confidence_levels, surface_rows, variable
     )
-
-    rows: list[dict[str, float]] = []
-    for idx, value in enumerate(target_values):
-        row: dict[str, float] = {
-            "input_value": float(value),
-            "best_fit": float(best_fit[idx]),
-            "median": float(median_values[idx]),
-        }
-        for level in confidence_levels:
-            label = f"{level:.2f}"
-            if variable == "x":
-                neg = float(np.polyval(surface_rows[f"neg_{label}_poly"], value))
-                pos = float(np.polyval(surface_rows[f"pos_{label}_poly"], value))
-            else:
-                neg = float(np.polyval(surface_rows[f"neg_{label}_poly"], best_fit[idx]))
-                pos = float(np.polyval(surface_rows[f"pos_{label}_poly"], best_fit[idx]))
-            row[f"neg_ci_{int(round(level * 100))}"] = neg
-            row[f"pos_ci_{int(round(level * 100))}"] = pos
-        rows.append(row)
-
     results = pd.DataFrame(rows)
     if scalar_input:
         return results.iloc[[0]].reset_index(drop=True)
@@ -790,6 +854,40 @@ def apply_calibration_y(
         line_interval=line_interval,
         max_poly_order=max_poly_order,
     )
+
+
+# ── Private helpers for plot_regression ──────────────────────────────────────
+
+def _plot_datapoints(ax: Axes, datapoints: pd.DataFrame, **kwargs: Any) -> None:
+    """Add error-bar data points to an existing axis."""
+    ax.errorbar(
+        x=datapoints["x"],
+        y=datapoints["y"],
+        yerr=datapoints["yerr"],
+        xerr=datapoints["xerr"],
+        marker=".",
+        fmt="g",
+        linestyle="none",
+        capsize=5,
+        markeredgewidth=1,
+        markersize=10,
+        label=None,
+        **kwargs,
+    )
+
+
+def _set_ax_xlim(
+    ax: Axes, x_index: np.ndarray, datapoints: pd.DataFrame | None
+) -> None:
+    """Set x-axis limits to cover the grid and any data points."""
+    x_arr = np.asarray(x_index, dtype=float)
+    x_min = float(np.nanmin(x_arr)) if len(x_arr) else 0.0
+    x_max = float(np.nanmax(x_arr)) if len(x_arr) else 0.0
+    if datapoints is not None:
+        data_x = np.asarray(datapoints["x"], dtype=float)
+        if len(data_x):
+            x_max = max(x_max, float(np.nanmax(data_x)))
+    ax.set_xlim(left=min(x_min, 0.0), right=x_max * 1.05 + 1e-9)
 
 
 def plot_regression(
@@ -835,140 +933,67 @@ def plot_regression(
 
         ax = ax if ax is not None else plt.gca()
         band_colors = (
-            [ecolor] * len(confidence_df)
-            if isinstance(ecolor, str)
-            else list(ecolor)
+            [ecolor] * len(confidence_df) if isinstance(ecolor, str) else list(ecolor)
         )
         band_alphas = (
-            [e_alpha] * len(confidence_df)
-            if isinstance(e_alpha, float)
-            else list(e_alpha)
+            [e_alpha] * len(confidence_df) if isinstance(e_alpha, float) else list(e_alpha)
         )
         line_colors = (
-            [line_color] * len(confidence_df)
-            if isinstance(line_color, str)
-            else list(line_color)
+            [line_color] * len(confidence_df) if isinstance(line_color, str) else list(line_color)
         )
 
-        x_values = confidence_df[0]["best_fit"].index
-        if datapoints is not None:
-            x_values = np.asarray(datapoints["x"], dtype=float)
-
         if len(confidence_df) >= 2:
-            conf_95 = confidence_df[0]
-            conf_68 = confidence_df[1]
+            conf_95, conf_68 = confidence_df[0], confidence_df[1]
             x = conf_95["neg_error_bound"].index
             ax.fill_between(
-                x,
-                conf_95["neg_error_bound"],
-                conf_95["pos_error_bound"],
-                color=band_colors[0],
-                alpha=band_alphas[0],
-                linewidth=0,
-                label="95% CI",
+                x, conf_95["neg_error_bound"], conf_95["pos_error_bound"],
+                color=band_colors[0], alpha=band_alphas[0], linewidth=0, label="95% CI",
             )
             ax.fill_between(
-                x,
-                conf_68["neg_error_bound"],
-                conf_68["pos_error_bound"],
+                x, conf_68["neg_error_bound"], conf_68["pos_error_bound"],
                 color=band_colors[1 % len(band_colors)],
                 alpha=band_alphas[1 % len(band_alphas)],
-                linewidth=0,
-                label="68% CI",
+                linewidth=0, label="68% CI",
             )
-            best_fit_color = line_colors[0] if line_colors else "#0f766e"
-            line_kwargs = dict(kwargs)
-            line_kwargs.setdefault("linewidth", 2.0)
-            ax.plot(
-                x,
-                conf_95["best_fit"],
-                color=best_fit_color,
-                label="Best fit",
-                **line_kwargs,
-            )
+            best_fit_values = conf_95["best_fit"]
         else:
             conf = confidence_df[0]
             x = conf["neg_error_bound"].index
             ax.fill_between(
-                x,
-                conf["neg_error_bound"],
-                conf["pos_error_bound"],
-                color=band_colors[0],
-                alpha=band_alphas[0],
-                linewidth=0,
-                label="95% CI",
+                x, conf["neg_error_bound"], conf["pos_error_bound"],
+                color=band_colors[0], alpha=band_alphas[0], linewidth=0, label="95% CI",
             )
-            best_fit_color = line_colors[0] if line_colors else "#0f766e"
-            line_kwargs = dict(kwargs)
-            line_kwargs.setdefault("linewidth", 2.0)
-            ax.plot(
-                x,
-                conf["best_fit"],
-                color=best_fit_color,
-                label="Best fit",
-                **line_kwargs,
-            )
+            best_fit_values = conf["best_fit"]
+
+        line_kwargs = dict(kwargs)
+        line_kwargs.setdefault("linewidth", 2.0)
+        ax.plot(
+            x, best_fit_values,
+            color=(line_colors[0] if line_colors else "#0f766e"),
+            label="Best fit", **line_kwargs,
+        )
 
         if datapoints is not None:
-            ax.errorbar(
-                x=datapoints["x"],
-                y=datapoints["y"],
-                yerr=datapoints["yerr"],
-                xerr=datapoints["xerr"],
-                marker=".",
-                fmt="g",
-                linestyle="none",
-                capsize=5,
-                markeredgewidth=1,
-                markersize=10,
-                label=None,
-                **kwargs,
-            )
+            _plot_datapoints(ax, datapoints, **kwargs)
 
-        x_values_arr = np.asarray(list(x_values), dtype=float)
-        x_max = float(np.nanmax(x_values_arr)) if len(x_values_arr) else 0.0
-        x_min = float(np.nanmin(x_values_arr)) if len(x_values_arr) else 0.0
-        ax.set_xlim(left=min(x_min, 0.0), right=x_max * 1.05 + 1e-9)
+        x_index = np.asarray(confidence_df[0]["best_fit"].index, dtype=float)
+        _set_ax_xlim(ax, x_index, datapoints)
         ax.legend(loc="best", frameon=True)
         return ax
 
-    best_fit = confidence_df["best_fit"]
-    neg_bound = confidence_df["neg_error_bound"]
-    pos_bound = confidence_df["pos_error_bound"]
-
-    x = neg_bound.index
-    if ax is None:
-        ax = plt.gca()
-
-    ax.fill_between(x, neg_bound, pos_bound, color=ecolor, alpha=e_alpha)
-    ax.plot(x, best_fit, color=line_color, **kwargs)
-
-    x_max = (
-        float(np.nanmax(np.asarray(list(x), dtype=float))) if len(x) else 0.0
+    # Single DataFrame branch.
+    ax = ax if ax is not None else plt.gca()
+    x = confidence_df["neg_error_bound"].index
+    ax.fill_between(
+        x, confidence_df["neg_error_bound"], confidence_df["pos_error_bound"],
+        color=ecolor, alpha=e_alpha,
     )
+    ax.plot(x, confidence_df["best_fit"], color=line_color, **kwargs)
+
     if datapoints is not None:
-        data_x = np.asarray(datapoints["x"], dtype=float)
-        if len(data_x):
-            x_max = max(x_max, float(np.nanmax(data_x)))
-        ax.errorbar(
-            x=datapoints["x"],
-            y=datapoints["y"],
-            yerr=datapoints["yerr"],
-            xerr=datapoints["xerr"],
-            marker=".",
-            fmt="g",
-            linestyle="none",
-            capsize=5,
-            markeredgewidth=1,
-            markersize=10,
-            label=None,
-            **kwargs,
-        )
+        _plot_datapoints(ax, datapoints, **kwargs)
 
-    ax.set_xlim(
-        left=min(float(np.nanmin(np.asarray(list(x), dtype=float))), 0.0),
-        right=x_max * 1.05 + 1e-9,
-    )
+    _set_ax_xlim(ax, np.asarray(x, dtype=float), datapoints)
     return ax
 
 
@@ -983,7 +1008,6 @@ def odr_bootstrap(
     fit_intercept: bool = True,
     initial_guess: list[float] | None = None,
     confidence_level: float = 0.95,
-    **kwargs: Any,
 ) -> tuple[pd.DataFrame, np.ndarray, pd.DataFrame, list[np.ndarray], list[pd.DataFrame]]:
     """
     Run bootstrap resampling for ODR linear fitting and compute confidence data.
@@ -1089,51 +1113,10 @@ def gaussian_aggregate(
         statistics : dict
             Summary information including mean, mode, midpoint, and bounds.
     """
-    def gaussian(
-        x_values: np.ndarray,
-        sigma: np.ndarray | float,
-        avg: np.ndarray | float,
-    ) -> np.ndarray:
-        sigma_arr = np.asarray(sigma, dtype=float)
-        avg_arr = np.asarray(avg, dtype=float)
-        result = (1 / (sigma_arr * np.sqrt(2 * np.pi))) * np.exp(
-            -0.5 * ((x_values - avg_arr) / sigma_arr) ** 2
-        )
-        return np.asarray(result, dtype=float)
-
-    def ci_bound(xi: np.ndarray, data: np.ndarray, bound_fraction: float) -> float:
-        cumulative = np.cumsum(data)
-        index = np.searchsorted(cumulative, bound_fraction, side="left")
-        if index >= len(xi):
-            raise ValueError("Could not locate the requested confidence bound.")
-        return float(round(xi[index], 2))
-
-    def find_range(
-        avgs: np.ndarray | list[float], sigmas: np.ndarray | list[float]
-    ) -> tuple[float, float]:
-        avg_arr = np.asarray(avgs, dtype=float)
-        sigma_arr = np.asarray(sigmas, dtype=float)
-        valid = np.isfinite(avg_arr) & np.isfinite(sigma_arr) & (sigma_arr > 0)
-        if not np.any(valid):
-            raise ValueError(
-                "Input concentrations and errors must contain finite positive values."
-            )
-
-        avg_arr = avg_arr[valid]
-        sigma_arr = sigma_arr[valid]
-
-        lower_bound = float(
-            np.percentile(avg_arr, 0.5) - 6 * np.percentile(sigma_arr, 99.0)
-        )
-        upper_bound = float(
-            np.percentile(avg_arr, 99.5) + 6 * np.percentile(sigma_arr, 99.0)
-        )
-        return lower_bound, upper_bound
-
     concentrations_arr = np.asarray(concentrations, dtype=float)
     errors_arr = np.asarray(errors, dtype=float)
 
-    min_val, max_val = find_range(concentrations_arr, errors_arr)
+    min_val, max_val = _density_range(concentrations_arr, errors_arr)
     spread = max_val - min_val
     step = max(0.01, spread / 20000.0)
     xi = np.arange(min_val, max_val + step, step)
@@ -1141,17 +1124,20 @@ def gaussian_aggregate(
         step = spread / 50000.0
         xi = np.arange(min_val, max_val + step, step)
 
-    x = np.tile(xi, (len(concentrations_arr), 1))
-    unnormed_data = np.sum(gaussian(x.T, errors_arr, concentrations_arr), axis=1)
+    # Use broadcasting instead of np.tile: xi[:, None] is (M, 1),
+    # errors_arr / concentrations_arr are (N,), result is (M, N).
+    unnormed_data = np.sum(
+        _gaussian(xi[:, None], errors_arr, concentrations_arr), axis=1
+    )
     data = unnormed_data / np.trapezoid(unnormed_data)
 
     average = float(np.dot(xi, data) / np.sum(data))
     most_frequent = float(xi[np.argmax(data)])
     best_fit = float(concentrations_arr[0])
 
-    center_of_mass = ci_bound(xi, data, 0.50)
-    lower_16, upper_84 = ci_bound(xi, data, 0.16), ci_bound(xi, data, 0.84)
-    lower_05, upper_95 = ci_bound(xi, data, 0.05), ci_bound(xi, data, 0.95)
+    center_of_mass = _ci_bound(xi, data, 0.50)
+    lower_16, upper_84 = _ci_bound(xi, data, 0.16), _ci_bound(xi, data, 0.84)
+    lower_05, upper_95 = _ci_bound(xi, data, 0.05), _ci_bound(xi, data, 0.95)
     CI_one_sigma = (
         round(center_of_mass - lower_16, 2),
         round(upper_84 - center_of_mass, 2),
@@ -1184,6 +1170,7 @@ def plot_density(
     bounds: dict[str, Any],
     ax: Axes | None = None,
     sample_name: str | None = None,
+    xlabel: str = "Value",
 ) -> Axes:
     """
     Plot a probability density curve and annotate summary statistics.
@@ -1199,6 +1186,8 @@ def plot_density(
         Axis to draw on. If None, the current axis is used.
     sample_name : str, optional
         Optional label or title text.
+    xlabel : str, optional
+        Label for the x-axis. Default is ``"Value"``.
 
     Returns
     -------
@@ -1209,7 +1198,7 @@ def plot_density(
     x = data["x"]
     y = data["y"]
     ax.plot(x, y, linewidth=3)
-    ax.set_xlabel("Concentration ppm")
+    ax.set_xlabel(xlabel)
     ax.set_ylabel("Probability")
 
     ax.axvline(

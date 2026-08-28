@@ -105,65 +105,36 @@ Complete Example Script
 Unknown Sample Results Table
 ============================
 
-The example script also creates a Great Tables summary table for unknown samples.
-This is useful when converting measured ion intensities into estimated
-concentrations in ppm. The generated HTML artifact is saved in
-``docs/source/_static/unknown_concentrations.html`` and can be embedded in the
-built docs when regenerated.
+Run ``examples/calibration_application_example.py`` to see a complete
+worked example converting measured ion count rates into concentration estimates.
+The script uses fixed calibration standards so the output is reproducible.
+
+.. code-block:: bash
+
+   uv run --extra examples python examples/calibration_application_example.py
+
+Calibration axis convention: **x = count rate, y = concentration (ppm)**.
+This means ``apply_calibration(variable="x")`` converts a measured count rate
+directly into a concentration — no inversion required.
+
+Count rate → concentration results
+------------------------------------
+
+The rendered results table shows the best-fit concentration and 68 % / 95 %
+bootstrap confidence intervals for four unknown samples:
 
 .. raw:: html
 
-   <iframe src="_static/unknown_concentrations.html" style="width: 100%; min-height: 420px; border: 0; margin-top: 1rem; margin-bottom: 1rem;"></iframe>
+   <iframe src="_static/calibration_results.html"
+          style="width:100%;min-height:420px;border:0;margin:1rem 0">
+   </iframe>
 
-.. code-block:: python
+The full calibration application script:
 
-   import numpy as np
-   from great_tables import GT, md
-   from odr_bootstrap import apply_calibration_y
+.. literalinclude:: ../../examples/calibration_application_example.py
+   :language: python
+   :linenos:
 
-   unknown_counts = np.array([150.0, 430.0, 910.0, 1600.0])
-   unknown_conc = apply_calibration_y(
-       unknown_counts,
-       all_params,
-       fit_intercept=True,
-       confidence_levels=(0.68, 0.95),
-   )
-
-   unknown_conc = unknown_conc.rename(
-       columns={
-           "input_value": "Ion intensity (counts)",
-           "best_fit": "Estimated concentration (ppm)",
-           "median": "Median concentration (ppm)",
-           "neg_ci_68": "Lower 68% CI (ppm)",
-           "pos_ci_68": "Upper 68% CI (ppm)",
-           "neg_ci_95": "Lower 95% CI (ppm)",
-           "pos_ci_95": "Upper 95% CI (ppm)",
-       }
-   )
-   unknown_conc.insert(0, "Sample ID", [f"Unknown {i + 1}" for i in range(len(unknown_conc))])
-
-   GT(unknown_conc, rowname_col="Sample ID").tab_header(
-       title="Unknown sample concentrations",
-       subtitle="Estimated from signal intensity using the bootstrap calibration",
-   ).fmt_number(
-       columns=[
-           "Ion intensity (counts)",
-           "Estimated concentration (ppm)",
-           "Median concentration (ppm)",
-           "Lower 68% CI (ppm)",
-           "Upper 68% CI (ppm)",
-           "Lower 95% CI (ppm)",
-           "Upper 95% CI (ppm)",
-       ],
-       decimals=2,
-   ).tab_source_note(
-       source_note=md("Calibration from ODR Bootstrap with propagated uncertainty.")
-   )
-
-The complete script used to generate the figures above is included below. It
-contains the clean calibration fit, the retained potential-outlier sensitivity
-analysis, the parameter-distribution plots, and the Great Tables summary of
-unknown sample concentrations.
 
 .. literalinclude:: ../../examples/example.py
    :language: python

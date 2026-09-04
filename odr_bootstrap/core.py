@@ -253,7 +253,23 @@ def _ci_bound(xi: np.ndarray, data: np.ndarray, bound_fraction: float) -> float:
     index = np.searchsorted(cumulative, bound_fraction, side="left")
     if index >= len(xi):
         raise ValueError("Could not locate the requested confidence bound.")
-    return float(round(xi[index], 2))
+    # Full precision: rounding here would collapse small-magnitude bounds
+    # (e.g. a calibration slope's CI) to 0.00. Round only when displaying.
+    return float(xi[index])
+
+
+def _format_stat(value: float, decimals: int = 2) -> str:
+    """Format a statistic for display.
+
+    Uses fixed-point notation with ``decimals`` places for "normal-scale"
+    values, and switches to general (``%g``-style) notation when the
+    magnitude is small enough that fixed-point would round to zero, or
+    large enough that it would print an unwieldy number of digits.
+    """
+    magnitude = abs(value)
+    if magnitude != 0 and (magnitude < 10**-decimals or magnitude >= 10**4):
+        return f"{value:.3g}"
+    return f"{value:.{decimals}f}"
 
 
 def _density_range(
@@ -1118,7 +1134,12 @@ def gaussian_aggregate(
 
     min_val, max_val = _density_range(concentrations_arr, errors_arr)
     spread = max_val - min_val
-    step = max(0.01, spread / 20000.0)
+    # No absolute floor here: `_density_range` guarantees `spread > 0`, and a
+    # fixed floor like 0.01 forces a grid coarser than the entire spread for
+    # any distribution with sub-0.01 magnitude (e.g. a small calibration
+    # slope), collapsing the density to 1-3 points. The `len(xi) > 50000`
+    # check below is the only cap needed, for very wide spreads.
+    step = spread / 20000.0
     xi = np.arange(min_val, max_val + step, step)
     if len(xi) > 50000:
         step = spread / 50000.0
@@ -1138,14 +1159,10 @@ def gaussian_aggregate(
     center_of_mass = _ci_bound(xi, data, 0.50)
     lower_16, upper_84 = _ci_bound(xi, data, 0.16), _ci_bound(xi, data, 0.84)
     lower_05, upper_95 = _ci_bound(xi, data, 0.05), _ci_bound(xi, data, 0.95)
-    CI_one_sigma = (
-        round(center_of_mass - lower_16, 2),
-        round(upper_84 - center_of_mass, 2),
-    )
-    CI_two_sigma = (
-        round(center_of_mass - lower_05, 2),
-        round(upper_95 - center_of_mass, 2),
-    )
+    # Kept at full precision (no rounding): a slope-scale CI can be smaller
+    # than 0.01 and would otherwise collapse to 0.00. Round only for display.
+    CI_one_sigma = (center_of_mass - lower_16, upper_84 - center_of_mass)
+    CI_two_sigma = (center_of_mass - lower_05, upper_95 - center_of_mass)
     one_sigma_bounds = (lower_16, upper_84)
     two_sigma_bounds = (lower_05, upper_95)
 
@@ -1223,13 +1240,13 @@ def plot_density(
 
     ax.annotate(
         f"""
-    Simple Best Fit: {float(bounds['simple_best_fit']):.2f}
-    Mean: {float(bounds['mean']):.2f}
-    Mode: {float(bounds['mode']):.2f}
-    Mid-point: {float(bounds['mid_point']):.2f}
+    Simple Best Fit: {_format_stat(float(bounds['simple_best_fit']))}
+    Mean: {_format_stat(float(bounds['mean']))}
+    Mode: {_format_stat(float(bounds['mode']))}
+    Mid-point: {_format_stat(float(bounds['mid_point']))}
     Confidence Intervals
-    68%: - {CI_one_sigma[0]:.2f} / +{CI_one_sigma[1]:.2f}
-    95%: - {CI_two_sigma[0]:.2f} / +{CI_two_sigma[1]:.2f}
+    68%: - {_format_stat(CI_one_sigma[0])} / +{_format_stat(CI_one_sigma[1])}
+    95%: - {_format_stat(CI_two_sigma[0])} / +{_format_stat(CI_two_sigma[1])}
     n: {bounds['n']}
     """,
         xy=(0.02, 0.68),

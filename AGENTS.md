@@ -20,7 +20,14 @@ The script (using `uv` throughout):
 3. Runs the unit test suite with coverage, plus the `uv`-installation tests
 4. Regenerates the example figures (`examples/example.py`), which updates the
    calibration PNGs in the repo root, `examples/`, and `docs/source/_static/`
-   so images linked from README.md and the Sphinx docs stay current
+   so images linked from README.md and the Sphinx docs stay current.
+   `examples/example.py` fits a fixed dataset checked in at
+   `examples/data/synthetic_calibration_standards.csv` — it does **not**
+   regenerate that data. `examples/Synthetic_Data_Generation.py` creates
+   that CSV and is run manually, on demand, only when a new synthetic
+   dataset is wanted; it must never be added to `regen-examples`, `docs`, or
+   this release script, since that would make example output nondeterministic
+   across releases.
 5. Rebuilds the Sphinx documentation (`docs/build/html`)
 6. Bumps the package version and refreshes `uv.lock`, if `--bump
    patch|minor|major` or `--set-version X.Y.Z` was passed (skipped by

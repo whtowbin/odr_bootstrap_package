@@ -24,13 +24,25 @@ Basic Calibration Fit
 ======================
 
 Fit a linear calibration curve with bootstrap confidence intervals. The
-example uses fixed, reproducible SIMS-style standards — a measured ion count
-rate (``x``) against a known concentration (``y``):
+example uses a fixed set of synthetic SIMS-style standards — a measured ion
+count rate (``x``) against a known concentration (``y``) — loaded from
+``examples/data/synthetic_calibration_standards.csv``:
 
 .. literalinclude:: ../../examples/example.py
    :language: python
    :start-after: # section:standards
    :end-before: # end-section:standards
+
+That CSV is generated once by ``examples/Synthetic_Data_Generation.py``, which
+draws standards from a seeded random generator and is checked into the repo
+so ``example.py`` always fits the same data. This generator script is run
+**manually only** — it is intentionally excluded from ``make regen-examples``,
+``make docs``, and ``scripts/prepare-release.sh``, so that rebuilding the docs
+or cutting a release never changes the underlying dataset. Regenerate it with:
+
+.. code-block:: bash
+
+   uv run python examples/Synthetic_Data_Generation.py
 
 ``fit_defaults`` derives the three parameters the fitting functions need so
 you don't have to set them manually — an initial least-squares guess, and a
@@ -167,14 +179,13 @@ x-axis and the known concentration is on the y-axis:
 
     concentration (ppm) = slope × count rate (counts) + intercept
 
-``apply_calibration(variable="x")`` converts a measured count rate directly
-into a concentration estimate. Passing ``variable="y"`` (or the
-``apply_calibration_y`` wrapper) does the reverse: given a known or measured
-**concentration**, it estimates the corresponding count rate. The example
-script evaluates the Y variable this way, and — because the two potential
-outliers above cannot be excluded on independent grounds — it deliberately
-applies the **outlier-affected** fit (``outlier_params``) rather than the
-clean fit, so the reported uncertainty reflects their influence:
+``apply_calibration(variable="x")`` — the default — converts a measured
+count rate directly into a concentration estimate, no inversion required.
+The example script applies this to ``UNKNOWN_COUNTS`` and — because the two
+potential outliers above cannot be excluded on independent grounds — it
+deliberately applies the **outlier-affected** fit (``outlier_params``)
+rather than the clean fit, so the reported uncertainty reflects their
+influence:
 
 .. literalinclude:: ../../examples/example.py
    :language: python
@@ -183,26 +194,29 @@ clean fit, so the reported uncertainty reflects their influence:
 
 Example output::
 
-    input_value  best_fit   median  neg_ci_68  pos_ci_68  neg_ci_95  pos_ci_95
-          0.800    95.422   95.538     91.529    102.348     80.734    113.721
-          3.500   359.575  361.820    345.818    375.579    321.216    401.333
-          7.000   701.995  702.844    668.369    736.542    616.493    801.195
-         15.000  1484.670 1485.708   1405.876   1562.755   1278.252   1726.319
+    input_value  best_fit  median  neg_ci_68  pos_ci_68  neg_ci_95  pos_ci_95
+        150.000    11.334  11.289     10.994     11.710     10.706     12.613
+        400.000    12.494  12.558     12.155     13.070     11.863     13.831
+        850.000    14.583  14.709     13.929     15.859     13.308     16.974
+       1600.000    18.064  18.219     16.693     20.720     15.485     23.076
 
 The columns are:
 
-- **input_value** — the known/measured concentration (ppm) you supplied.
-- **best_fit** — count rate predicted from the best-fit line.
-- **median** — median of all bootstrap estimates for that concentration.
+- **input_value** — the measured count rate you supplied.
+- **best_fit** — concentration predicted from the best-fit line.
+- **median** — median of all bootstrap estimates for that count rate.
 - **neg_ci_68 / pos_ci_68** — lower and upper bounds of the 68 % CI.
 - **neg_ci_95 / pos_ci_95** — lower and upper bounds of the 95 % CI.
 
 .. note::
 
-   When evaluating the Y variable, pass ``line_max``/``line_interval`` sized
-   to the **x** (count-rate) axis — as the example does by reusing the
-   outlier fit's grid — rather than letting them default from the supplied
-   concentration values, which live on a different scale.
+   :func:`~odr_bootstrap.apply_calibration` also accepts ``variable="y"``
+   (or the :func:`~odr_bootstrap.apply_calibration_y` convenience wrapper) to
+   go the other direction — given a known/measured concentration, estimate
+   the corresponding count rate. In that case pass ``line_max``/
+   ``line_interval`` sized to the **x** (count-rate) axis explicitly, rather
+   than letting them default from the supplied concentration values, which
+   live on a different scale.
 
 Rendering the Results with Great Tables
 -----------------------------------------

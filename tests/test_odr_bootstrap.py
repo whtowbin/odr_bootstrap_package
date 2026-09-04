@@ -2,6 +2,7 @@
 Unit tests for ODR bootstrapping and calibration functions.
 """
 
+import re
 import unittest
 
 import matplotlib.pyplot as plt
@@ -295,6 +296,70 @@ class TestODRBootstrap(unittest.TestCase):
         self.assertGreater(width_95, width_68 * 0.9)
 
 
+class TestGroundTruthRecovery(unittest.TestCase):
+    """odr_bootstrap + gaussian_aggregate should recover the parameters used
+    to generate synthetic calibration data, within their own bootstrap
+    uncertainty, at both "normal" and slope-scale (<<1) magnitudes.
+    """
+
+    def _assert_recovers(self, x, true_slope, true_intercept, x_err, y_err, rng):
+        y = true_slope * x + true_intercept + rng.normal(0, y_err, size=x.shape)
+
+        confidence_data, best_fit_params, points, all_params, _ = odr_bootstrap(
+            x=x, y=y, x_err=x_err, y_err=y_err,
+            resample_draws=500, fit_intercept=True,
+        )
+        del confidence_data, points  # not needed for this assertion
+
+        all_params_arr = np.asarray(all_params, dtype=float)
+        slopes = all_params_arr[:, 0]
+        intercepts = all_params_arr[:, 1]
+        slope_std = slopes.std()
+        intercept_std = intercepts.std()
+
+        # The best fit (all_params[0], = best_fit_params) should land within
+        # a few bootstrap standard deviations of the true generating values.
+        self.assertLess(abs(best_fit_params[0] - true_slope), 3 * slope_std)
+        self.assertLess(abs(best_fit_params[1] - true_intercept), 3 * intercept_std)
+
+        # The same check, through the exact aggregation chain used by
+        # examples/example.py to plot the bootstrap distributions.
+        slope_dist, slope_stats = gaussian_aggregate(
+            slopes, np.full_like(slopes, slope_std)
+        )
+        intercept_dist, intercept_stats = gaussian_aggregate(
+            intercepts, np.full_like(intercepts, intercept_std)
+        )
+        self.assertGreater(len(slope_dist["x"]), 1000)
+        self.assertGreater(len(intercept_dist["x"]), 1000)
+        self.assertLess(abs(slope_stats["mean"] - true_slope), 3 * slope_std)
+        self.assertLess(abs(intercept_stats["mean"] - true_intercept), 3 * intercept_std)
+
+    def test_recovers_normal_scale_parameters(self):
+        rng = np.random.default_rng(42)
+        x = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+        self._assert_recovers(
+            x, true_slope=2.5, true_intercept=10.0,
+            x_err=np.full_like(x, 0.1), y_err=np.full_like(x, 0.5), rng=rng,
+        )
+
+    def test_recovers_small_slope_parameters(self):
+        """Mirrors the SIMS-style calibration in examples/example.py, where
+        the slope (~0.006-0.01 ppm/count) is small enough to have triggered
+        the gaussian_aggregate grid-step bug.
+        """
+        rng = np.random.default_rng(7)
+        x = np.array([62.0, 117.0, 223.0, 528.0, 1014.0, 2001.0])
+        true_slope = 1 / 125  # ~0.008
+        true_intercept = 10.0
+        self._assert_recovers(
+            x, true_slope=true_slope, true_intercept=true_intercept,
+            x_err=np.abs(rng.normal(1, 0.1, len(x)) * x - x) + 5,
+            y_err=(true_slope * x + true_intercept) * 0.15,
+            rng=rng,
+        )
+
+
 class TestGaussianAggregate(unittest.TestCase):
     """Test gaussian_aggregate function."""
 
@@ -331,6 +396,85 @@ class TestGaussianAggregate(unittest.TestCase):
         self.assertTrue(np.isfinite(dist["x"]).all())
         self.assertTrue(np.isfinite(dist["y"]).all())
         self.assertLess(len(dist["x"]), 50000)
+
+
+class TestGaussianAggregateSmallMagnitude(unittest.TestCase):
+    """Regression tests for gaussian_aggregate with slope-scale values.
+
+    A hardcoded 0.01 grid-step floor used to force a 1-3 point evaluation
+    grid for distributions with a spread well under 0.01 (e.g. a calibration
+    slope around 0.006), rendering as a triangle instead of a smooth curve.
+    These tests fit slope-scale synthetic bootstrap draws directly, mirroring
+    ``all_params_array[:, 0]`` in examples/example.py.
+    """
+
+    def setUp(self):
+        rng = np.random.default_rng(0)
+        self.true_mean = 0.00583
+        self.true_std = 0.00095
+        self.slopes = rng.normal(self.true_mean, self.true_std, 2000)
+
+    def test_grid_has_many_points(self):
+        """The old 0.01 floor produced only 1-3 points for this spread."""
+        dist, _ = gaussian_aggregate(self.slopes, np.full_like(self.slopes, self.true_std))
+        self.assertGreater(len(dist["x"]), 1000)
+
+    def test_mean_and_mode_match_input(self):
+        _, stats_dict = gaussian_aggregate(self.slopes, np.full_like(self.slopes, self.true_std))
+        self.assertAlmostEqual(stats_dict["mean"], self.true_mean, delta=3 * self.true_std)
+        self.assertAlmostEqual(stats_dict["mid_point"], self.true_mean, delta=3 * self.true_std)
+
+    def test_one_sigma_bounds_match_input_std(self):
+        _, stats_dict = gaussian_aggregate(self.slopes, np.full_like(self.slopes, self.true_std))
+        lower, upper = stats_dict["one_sigma_bounds"]
+        # Old rounding to 2 decimals would have collapsed this span to 0.
+        self.assertGreater(upper - lower, 0)
+        self.assertAlmostEqual(upper - lower, 2 * self.true_std, delta=self.true_std)
+
+    def test_ci_one_sigma_not_rounded_to_zero(self):
+        _, stats_dict = gaussian_aggregate(self.slopes, np.full_like(self.slopes, self.true_std))
+        neg, pos = stats_dict["CI_one_sigma"]
+        self.assertGreater(neg, 0)
+        self.assertGreater(pos, 0)
+
+
+class TestPlotDensityFormatting(unittest.TestCase):
+    """plot_density should format annotation text based on value magnitude."""
+
+    def test_small_values_use_general_notation(self):
+        rng = np.random.default_rng(1)
+        slopes = rng.normal(0.00583, 0.00095, 500)
+        dist, stats_dict = gaussian_aggregate(slopes, np.full_like(slopes, slopes.std()))
+        fig, ax = plt.subplots()
+        plot_density(dist, stats_dict, ax=ax)
+        text = ax.texts[0].get_text()
+        plt.close(fig)
+        # Fixed 2-decimal notation (the pre-fix behavior) would print exactly
+        # "0.00" or "0.01" here, discarding all significant digits.
+        match = re.search(r"Mean: (\S+)", text)
+        self.assertIsNotNone(match)
+        self.assertNotIn(match.group(1), {"0.00", "0.01", "-0.00"})
+        self.assertAlmostEqual(float(match.group(1)), stats_dict["mean"], delta=1e-4)
+
+    def test_large_values_use_general_notation(self):
+        values = np.array([1.5e6, 1.52e6, 1.48e6])
+        errors = np.array([1e4, 1e4, 1e4])
+        dist, stats_dict = gaussian_aggregate(values, errors)
+        fig, ax = plt.subplots()
+        plot_density(dist, stats_dict, ax=ax)
+        text = ax.texts[0].get_text()
+        plt.close(fig)
+        self.assertIn("e+06", text)
+
+    def test_normal_scale_values_keep_fixed_point_notation(self):
+        concentrations = np.array([100.0, 105.0, 98.0, 102.0, 101.0])
+        errors = np.array([5.0, 6.0, 4.0, 5.5, 4.5])
+        dist, stats_dict = gaussian_aggregate(concentrations, errors)
+        fig, ax = plt.subplots()
+        plot_density(dist, stats_dict, ax=ax)
+        text = ax.texts[0].get_text()
+        plt.close(fig)
+        self.assertIn(f"Mean: {stats_dict['mean']:.2f}", text)
 
 
 class TestPlottingFunctions(unittest.TestCase):

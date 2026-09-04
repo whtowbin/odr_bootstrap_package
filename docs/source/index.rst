@@ -41,7 +41,6 @@ Getting Started
    :caption: User Guide
 
    installation
-   tutorial
    examples
 
 API Reference

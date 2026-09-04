@@ -33,7 +33,7 @@ uv sync
 
 ## Documentation
 
-Full documentation at [Read the Docs](https://odr-bootstrap-package.readthedocs.io/en/latest/index.html) — including a [Tutorial](https://odr-bootstrap-package.readthedocs.io/en/latest/tutorial.html) and [API Reference](https://odr-bootstrap-package.readthedocs.io/en/latest/api.html).
+Full documentation at [Read the Docs](https://odr-bootstrap-package.readthedocs.io/en/latest/index.html) — including [Examples](https://odr-bootstrap-package.readthedocs.io/en/latest/examples.html) and [API Reference](https://odr-bootstrap-package.readthedocs.io/en/latest/api.html).
 
 ## Quick Start
 
@@ -131,10 +131,10 @@ confidence level.
 
 Use `great_tables` (optional, `uv sync --extra examples`) to render results
 as a publication-ready HTML table — see
-[`examples/calibration_application_example.py`](examples/calibration_application_example.py)
+[`examples/example.py`](examples/example.py)
 for the full worked example, or the
-[Tutorial](https://odr-bootstrap-package.readthedocs.io/en/latest/tutorial.html)
-for the rendered output table.
+[Examples](https://odr-bootstrap-package.readthedocs.io/en/latest/examples.html)
+page for the rendered output table.
 
 ### Visualising parameter uncertainty
 
@@ -160,7 +160,7 @@ plt.show()
 
 ## Example Output
 
-Running `python examples/example.py` produces four figures. The first two show the clean calibration fit; the second two repeat the analysis with synthetic outliers so you can see how they affect the result.
+Running `python examples/example.py` produces four figures and a results table. The first two show the clean calibration fit; the second two repeat the analysis with two retained potential outliers so you can see how they affect the result; the calibration is then applied — using the outlier-affected fit — to estimate count rates from known concentrations.
 
 ### Clean calibration fit
 

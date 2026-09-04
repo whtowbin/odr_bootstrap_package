@@ -76,6 +76,5 @@ Or from the command line:
 Next Steps
 ==========
 
-- Read the :doc:`tutorial` for a guided introduction
-- Check out :doc:`examples` for complete working code
+- Read :doc:`examples` for a guided introduction with complete working code
 - Browse the :doc:`api` for detailed function documentation

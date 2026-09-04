@@ -69,7 +69,6 @@ build: clean
 
 regen-examples:
 	uv run --extra examples python examples/example.py
-	uv run --extra examples python examples/calibration_application_example.py
 	@echo "Example artifacts regenerated: calibration plots and HTML tables"
 
 docs: regen-examples

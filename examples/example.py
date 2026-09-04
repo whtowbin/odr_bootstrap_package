@@ -1,5 +1,30 @@
 #%%
-"""Example workflow for ODR bootstrapping and calibration analysis."""
+"""Complete ODR Bootstrap calibration workflow.
+
+This script is the single source of truth for the code shown in the Sphinx
+docs (``docs/source/examples.rst`` pulls sections of this file directly via
+``literalinclude``), so keep the section banner comments below intact when
+editing — they mark the ``:start-after:``/``:end-before:`` anchors used there.
+
+Calibration axis convention
+----------------------------
+x = measured ion count rate (counts)   ← independent variable with counting noise
+y = known concentration (ppm)          ← dependent variable
+
+The workflow:
+  1. Fits a linear calibration to fixed, reproducible SIMS-style standards.
+  2. Repeats the fit with two additional off-trend standards retained to
+     show how potential outliers affect the fit and its bootstrap
+     uncertainty (see "Handling Potential Outliers" in the docs).
+  3. Applies the *outlier-affected* calibration to unknown **concentration**
+     values, evaluating the Y variable (``apply_calibration_y``) to estimate
+     the corresponding count rate with bootstrap confidence intervals.
+  4. Renders the results with Great Tables and saves all figures/HTML to
+     examples/ and docs/source/_static/.
+
+Run:
+    uv run --extra examples python examples/example.py
+"""
 
 from __future__ import annotations
 
@@ -32,9 +57,25 @@ from odr_bootstrap import (  # noqa: E402
 OUTPUT_DIR = Path(__file__).resolve().parent
 DOCS_STATIC_DIR = REPO_ROOT / "docs" / "source" / "_static"
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Fixed calibration standards
+# x = ion count rate from reference standards (counts)
+# y = known concentration of those standards (ppm)
+# ──────────────────────────────────────────────────────────────────────────────
+# section:standards
+X_COUNTS = np.array([62, 117, 223, 528, 1014, 2001])  # count rate
+Y_CONC = np.array([0.5, 1.0, 2.0, 5.0, 10.0, 20.0])  # ppm
+X_UNCERTAINTY = np.array([15, 20, 25, 40, 60, 80])  # counting sigma
+Y_UNCERTAINTY = Y_CONC * 0.02  # 2 % of concentration
+# end-section:standards
+
+# Unknown samples: known/measured concentrations whose count rate we want to
+# back-estimate (evaluating the Y variable of the calibration).
+UNKNOWN_CONC = np.array([0.8, 3.5, 7.0, 15.0])  # ppm
+
 
 def main() -> None:
-    """Run the complete example workflow and save figures next to the script."""
+    """Run the complete calibration workflow and save figures/tables."""
 
     DOCS_STATIC_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -43,49 +84,21 @@ def main() -> None:
     print("=" * 70)
 
     # =========================================================================
-    # 1. Create Synthetic Calibration Data
+    # 1. Fit the clean calibration
     # =========================================================================
-    print("\n[1/6] Creating synthetic calibration data...")
+    print("\n[1/6] Fitting calibration to the fixed standards...")
 
-    x_standards = np.array([0.1, 0.5, 1.0, 2.0, 5.0, 10.0])
-    y_measured = 125 * x_standards + 15 + np.random.normal(0, 40, len(x_standards))
-    x_uncertainty = np.array([0.01, 0.05, 0.1, 0.2, 0.5, 1.0])
-    y_uncertainty = np.array([20, 30, 50, 60, 100, 150])
-
-    # Derive sensible initial parameters from the data
-    defaults = fit_defaults(x_standards, y_measured, fit_intercept=True)
+    # section:clean-fit
+    defaults = fit_defaults(X_COUNTS, Y_CONC, fit_intercept=True)
     initial_guess = defaults["initial_guess"]
     line_max = defaults["line_max"] * 1.2
     line_interval = defaults["line_interval"]
 
-    print(f"   Standards: {x_standards}")
-    print(f"   Measurements: {y_measured}")
-    print(f"   X uncertainties: {x_uncertainty}")
-    print(f"   Y uncertainties: {y_uncertainty}")
-    print(
-        f"   Least-squares initial guess: "
-        f"slope={initial_guess[0]:.3f}, intercept={initial_guess[1]:.3f}"
-    )
-
-    x_outlier = np.concatenate([x_standards, [8.5, 12]])
-    y_outlier = np.concatenate([
-        y_measured,
-        [125 * 8.5 + 15 + 400],
-        [125 * 12 + 15 - 1200],
-    ])
-    x_outlier_err = np.concatenate([x_uncertainty, [0.3, 0.5]])
-    y_outlier_err = np.concatenate([y_uncertainty, [100, 250]])
-
-    # =========================================================================
-    # 2. Run ODR Bootstrap Fitting
-    # =========================================================================
-    print("\n[2/6] Running ODR Bootstrap (N=2000 resamples)...")
-
     confidence_data, best_fit_params, points, all_params, _ = odr_bootstrap(
-        x=x_standards,
-        y=y_measured,
-        x_err=x_uncertainty,
-        y_err=y_uncertainty,
+        x=X_COUNTS,
+        y=Y_CONC,
+        x_err=X_UNCERTAINTY,
+        y_err=Y_UNCERTAINTY,
         resample_draws=2000,
         fit_intercept=True,
         initial_guess=initial_guess,
@@ -102,8 +115,31 @@ def main() -> None:
         all_params, line_max=line_max, line_interval=line_interval,
         confidence_level=0.95,
     )
+    # end-section:clean-fit
+
+    print(f"   Best-fit slope:     {best_fit_params[0]:.6f}  ppm / count")
+    print(f"   Best-fit intercept: {best_fit_params[1]:.6f}  ppm")
+    print(f"   Bootstrap resamples: {len(all_params) - 1}")
+    print(f"   Data points after NaN removal: {len(points)}")
+
+    # =========================================================================
+    # 2. Fit the outlier-affected calibration
+    # =========================================================================
+    print("\n[2/6] Fitting calibration with two retained potential outliers...")
+
+    # section:outlier-fit
+    # Two additional standards that fall well off the fitted trend. They are
+    # intentionally retained (not discarded) because there is no independent
+    # evidence they are bad measurements — see "Handling Potential Outliers".
+    x_outlier = np.concatenate([X_COUNTS, [750.0, 1500.0]])
+    y_outlier = np.concatenate([Y_CONC, [10.3, 10.8]])
+    x_outlier_err = np.concatenate([X_UNCERTAINTY, [70, 130]])
+    y_outlier_err = np.concatenate([Y_UNCERTAINTY, [0.3, 0.3]])
 
     outlier_defaults = fit_defaults(x_outlier, y_outlier, fit_intercept=True)
+    outlier_line_max = outlier_defaults["line_max"] * 1.2
+    outlier_line_interval = outlier_defaults["line_interval"]
+
     outlier_confidence_data, outlier_best_fit, outlier_points, outlier_params, _ = odr_bootstrap(
         x=x_outlier,
         y=y_outlier,
@@ -113,11 +149,10 @@ def main() -> None:
         fit_intercept=True,
         initial_guess=outlier_defaults["initial_guess"],
         confidence_level=0.95,
-        line_max=outlier_defaults["line_max"] * 1.2,
-        line_interval=outlier_defaults["line_interval"],
+        line_max=outlier_line_max,
+        line_interval=outlier_line_interval,
     )
-    outlier_line_max = outlier_defaults["line_max"] * 1.2
-    outlier_line_interval = outlier_defaults["line_interval"]
+
     outlier_conf_68 = evaluate_confidence(
         outlier_params,
         line_max=outlier_line_max,
@@ -130,17 +165,19 @@ def main() -> None:
         line_interval=outlier_line_interval,
         confidence_level=0.95,
     )
+    # end-section:outlier-fit
 
-    print(f"   Best fit slope: {best_fit_params[0]:.2f}")
-    print(f"   Best fit intercept: {best_fit_params[1]:.2f}")
-    print(f"   Bootstrap resamples computed: {len(all_params) - 1}")
-    print(f"   Data points after NaN removal: {len(points)}")
+    print(f"   Best-fit slope:     {outlier_best_fit[0]:.6f}  ppm / count")
+    print(f"   Best-fit intercept: {outlier_best_fit[1]:.6f}  ppm")
+    print(f"   Bootstrap resamples: {len(outlier_params) - 1}")
+    print(f"   Data points after NaN removal: {len(outlier_points)}")
 
     # =========================================================================
-    # 3. Plot Regression with 68% and 95% confidence intervals
+    # 3. Plot regression with 68% and 95% confidence intervals
     # =========================================================================
     print("\n[3/6] Plotting regression with 68% and 95% confidence intervals...")
 
+    # section:plot-clean
     fig, ax = plt.subplots(figsize=(10, 6))
     plot_regression(
         [conf_95, conf_68],
@@ -151,21 +188,23 @@ def main() -> None:
         e_alpha=[0.35, 0.7],
         linewidth=2.5,
     )
-    ax.set_xlabel("Concentration (ppm)", fontsize=12)
-    ax.set_ylabel("Ion Intensity (counts)", fontsize=12)
+    ax.set_xlabel("Count Rate (counts)", fontsize=12)
+    ax.set_ylabel("Concentration (ppm)", fontsize=12)
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
     fig.savefig(OUTPUT_DIR / "calibration_curve.png", dpi=150, bbox_inches="tight")
     fig.savefig(REPO_ROOT / "calibration_curve.png", dpi=150, bbox_inches="tight")
     fig.savefig(DOCS_STATIC_DIR / "calibration_curve.png", dpi=150, bbox_inches="tight")
+    # end-section:plot-clean
     print(f"   ✓ Saved: {OUTPUT_DIR / 'calibration_curve.png'}")
     plt.close(fig)
 
     # =========================================================================
-    # 4. Plot Calibration Estimate Distributions
+    # 4. Plot calibration estimate distributions
     # =========================================================================
     print("\n[4/6] Plotting calibration estimate distributions...")
 
+    # section:plot-clean-estimates
     all_params_array = np.asarray(all_params, dtype=float)
     all_slopes = all_params_array[:, 0]
     all_intercepts = all_params_array[:, 1]
@@ -195,14 +234,16 @@ def main() -> None:
     fig.savefig(OUTPUT_DIR / "calibration_estimates.png", dpi=150, bbox_inches="tight")
     fig.savefig(REPO_ROOT / "calibration_estimates.png", dpi=150, bbox_inches="tight")
     fig.savefig(DOCS_STATIC_DIR / "calibration_estimates.png", dpi=150, bbox_inches="tight")
+    # end-section:plot-clean-estimates
     print(f"   ✓ Saved: {OUTPUT_DIR / 'calibration_estimates.png'}")
     plt.close(fig)
 
     # =========================================================================
-    # 5. Plot Sensitivity to Retained Potential Outliers
+    # 5. Plot sensitivity to retained potential outliers
     # =========================================================================
     print("\n[5/6] Plotting sensitivity to retained potential outliers...")
 
+    # section:plot-outlier
     fig, ax = plt.subplots(figsize=(10, 6))
     plot_regression(
         [outlier_conf_95, outlier_conf_68],
@@ -213,20 +254,16 @@ def main() -> None:
         e_alpha=[0.4, 0.8],
         linewidth=2.5,
     )
-    ax.set_xlabel("Concentration (ppm)", fontsize=12)
-    ax.set_ylabel("Ion Intensity (counts)", fontsize=12)
+    ax.set_xlabel("Count Rate (counts)", fontsize=12)
+    ax.set_ylabel("Concentration (ppm)", fontsize=12)
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
     fig.savefig(OUTPUT_DIR / "calibration_curve_outlier.png", dpi=150, bbox_inches="tight")
     fig.savefig(REPO_ROOT / "calibration_curve_outlier.png", dpi=150, bbox_inches="tight")
     fig.savefig(DOCS_STATIC_DIR / "calibration_curve_outlier.png", dpi=150, bbox_inches="tight")
+    # end-section:plot-outlier
     print(f"   ✓ Saved: {OUTPUT_DIR / 'calibration_curve_outlier.png'}")
     plt.close(fig)
-
-    # =========================================================================
-    # 6. Plot Parameter Uncertainty with Retained Potential Outliers
-    # =========================================================================
-    print("\n[6/6] Plotting parameter uncertainty with retained potential outliers...")
 
     outlier_params_array = np.asarray(outlier_params, dtype=float)
     outlier_slopes = outlier_params_array[:, 0]
@@ -261,65 +298,109 @@ def main() -> None:
     print(f"   ✓ Saved: {OUTPUT_DIR / 'calibration_estimates_outlier.png'}")
     plt.close(outlier_fig)
 
+    # =========================================================================
+    # 6. Apply the outlier-affected calibration, evaluating the Y variable
+    # =========================================================================
+    print("\n[6/6] Applying the outlier-affected calibration to unknown concentrations...")
+
+    # section:apply-calibration
+    # `outlier_params` (not the clean-fit `all_params`) is used deliberately:
+    # since the potential outliers cannot be excluded on independent grounds,
+    # the applied calibration should reflect the wider, outlier-affected
+    # uncertainty. `apply_calibration_y` evaluates the Y variable — the
+    # inputs are known/measured concentrations (ppm) and the output is the
+    # corresponding estimated count rate with bootstrap confidence intervals.
+    # `line_max`/`line_interval` must span the count-rate (x) axis, not the
+    # concentration (y) values being supplied, so they are carried over from
+    # the outlier fit rather than left to be inferred from `UNKNOWN_CONC`.
+    results = apply_calibration_y(
+        UNKNOWN_CONC,
+        outlier_params,
+        fit_intercept=True,
+        confidence_levels=(0.68, 0.95),
+        line_max=outlier_line_max,
+        line_interval=outlier_line_interval,
+    )
+    # end-section:apply-calibration
+    print(results.to_string(float_format="{:.3f}".format, index=False))
+
     print("\n" + "=" * 70)
     print("SUMMARY")
     print("=" * 70)
-    print("\nFit Parameters (from full dataset):")
-    print(f"  Slope:     {best_fit_params[0]:8.2f}")
-    print(f"  Intercept: {best_fit_params[1]:8.2f}")
+    print("\nClean fit parameters:")
+    print(f"  Slope:     {best_fit_params[0]:8.6f}")
+    print(f"  Intercept: {best_fit_params[1]:8.6f}")
+    print(f"\nClean bootstrap statistics (N={len(all_params) - 1}):")
+    print(f"  Slope mean:     {slope_mean:.6f} ± {slope_std:.6f}")
+    print(f"  Intercept mean: {intercept_mean:.6f} ± {intercept_std:.6f}")
+    print("\nOutlier-affected fit parameters:")
+    print(f"  Slope:     {outlier_best_fit[0]:8.6f}")
+    print(f"  Intercept: {outlier_best_fit[1]:8.6f}")
 
-    print(f"\nBootstrap Statistics (N={len(all_params)-1}):")
-    print(f"  Slope mean:     {slope_mean:.2f} ± {slope_std:.2f}")
-    print(f"  Intercept mean: {intercept_mean:.2f} ± {intercept_std:.2f}")
+    # =========================================================================
+    # Render the results table with Great Tables
+    # =========================================================================
+    if GT is None or md is None:
+        print("\n   great_tables not installed — skipping HTML table output.")
+        print("   Install with:  uv sync --extra examples")
+        return
 
-    unknown_counts = np.array([145.0, 430.0, 910.0, 1600.0])
-    unknown_estimates = apply_calibration_y(
-        unknown_counts,
-        all_params,
-        fit_intercept=True,
-        confidence_levels=(0.68, 0.95),
-    )
-    unknown_estimates = unknown_estimates.rename(
-        columns={
-            "input_value": "Ion intensity (counts)",
-            "best_fit": "Estimated concentration (ppm)",
-            "median": "Median concentration (ppm)",
-            "neg_ci_68": "Lower 68% CI (ppm)",
-            "pos_ci_68": "Upper 68% CI (ppm)",
-            "neg_ci_95": "Lower 95% CI (ppm)",
-            "pos_ci_95": "Upper 95% CI (ppm)",
-        }
-    )
-    unknown_estimates.insert(0, "Sample ID", [f"Unknown {idx + 1}" for idx in range(len(unknown_estimates))])
+    _save_results_table(results)
 
-    if GT is not None and md is not None:
-        page = (
-            GT(unknown_estimates, rowname_col="Sample ID")
-            .tab_header(
-                title="Unknown sample concentrations",
-                subtitle="Ion intensity to concentration estimates from the bootstrap calibration",
-            )
-            .fmt_number(
-                columns=[
-                    "Ion intensity (counts)",
-                    "Estimated concentration (ppm)",
-                    "Median concentration (ppm)",
-                    "Lower 68% CI (ppm)",
-                    "Upper 68% CI (ppm)",
-                    "Lower 95% CI (ppm)",
-                    "Upper 95% CI (ppm)",
-                ],
-                decimals=2,
-            )
-            .tab_source_note(
-                source_note=md("Interpolation performed using the ODR Bootstrap fit and uncertainty propagation.")
-            )
+
+def _save_results_table(df) -> None:  # type: ignore[no-untyped-def]
+    """Build and save the concentration → count-rate results table."""
+    # section:render-table
+    display = df.copy()
+    display.insert(0, "Sample ID", [f"Unknown {i + 1}" for i in range(len(display))])
+    display = display.rename(columns={
+        "input_value": "Known concentration (ppm)",
+        "best_fit": "Estimated count rate (counts)",
+        "median": "Median count rate (counts)",
+        "neg_ci_68": "Lower 68 % CI (counts)",
+        "pos_ci_68": "Upper 68 % CI (counts)",
+        "neg_ci_95": "Lower 95 % CI (counts)",
+        "pos_ci_95": "Upper 95 % CI (counts)",
+    })
+
+    tbl = (
+        GT(display, rowname_col="Sample ID")
+        .tab_header(
+            title="Unknown sample count rates",
+            subtitle="Concentration converted to count rate using the outlier-affected bootstrap calibration",
         )
-        html = page.as_raw_html()
-        html_path = OUTPUT_DIR / "unknown_concentrations.html"
-        html_path.write_text(html, encoding="utf-8")
-        DOCS_STATIC_DIR.joinpath("unknown_concentrations.html").write_text(html, encoding="utf-8")
-        print(f"   ✓ Saved: {html_path}")
+        .fmt_number(
+            columns=["Known concentration (ppm)"],
+            decimals=2,
+        )
+        .fmt_number(
+            columns=[
+                "Estimated count rate (counts)", "Median count rate (counts)",
+                "Lower 68 % CI (counts)", "Upper 68 % CI (counts)",
+                "Lower 95 % CI (counts)", "Upper 95 % CI (counts)",
+            ],
+            decimals=1,
+        )
+        .tab_spanner(
+            label="68 % CI (counts)",
+            columns=["Lower 68 % CI (counts)", "Upper 68 % CI (counts)"],
+        )
+        .tab_spanner(
+            label="95 % CI (counts)",
+            columns=["Lower 95 % CI (counts)", "Upper 95 % CI (counts)"],
+        )
+        .tab_source_note(source_note=md(
+            "Calibration fit: **concentration (ppm) = slope × count rate + intercept**, fit with two "
+            "retained potential outliers. Confidence intervals propagated from 2000 bootstrap resamples "
+            "of the outlier-affected ODR fit."
+        ))
+    )
+    # end-section:render-table
+
+    html = tbl.as_raw_html()
+    (OUTPUT_DIR / "calibration_results.html").write_text(html, encoding="utf-8")
+    (DOCS_STATIC_DIR / "calibration_results.html").write_text(html, encoding="utf-8")
+    print("\n   ✓ Saved: calibration_results.html")
 
 
 if __name__ == "__main__":

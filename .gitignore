@@ -137,6 +137,8 @@ Thumbs.db
 !calibration_curve_outlier.png
 !calibration_estimates.png
 !calibration_estimates_outlier.png
+!readme_calibration_curve.png
+!readme_calibration_estimates.png
 !docs/source/_static/*.png
 !examples/*.png
 

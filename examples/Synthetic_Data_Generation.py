@@ -30,6 +30,13 @@ X_COUNTS = np.array([62, 117, 223, 528, 1014, 2001])
 _RNG = np.random.default_rng(seed=7)
 
 
+# Concentrations (and, since y_uncertainty is derived from y_conc, their
+# uncertainties too) are scaled up by this factor relative to the original
+# "count rate / 125 + 10" ideal line, to move the fitted slope away from the
+# very small magnitudes that are harder to read on a plot.
+CONCENTRATION_SCALE = 20
+
+
 def generate_standards() -> pd.DataFrame:
     """Build a synthetic set of SIMS-style calibration standards.
 
@@ -37,7 +44,7 @@ def generate_standards() -> pd.DataFrame:
     with 15% relative uncertainty simulated on both axes.
     """
     y_conc_ideal = X_COUNTS * (1 / 125) + 10
-    y_conc = np.round(_RNG.normal(1, 0.15, len(X_COUNTS)) * y_conc_ideal, 2)
+    y_conc = np.round(_RNG.normal(1, 0.15, len(X_COUNTS)) * y_conc_ideal, 2) * CONCENTRATION_SCALE
     x_uncertainty = np.abs(_RNG.normal(1, 0.1, len(X_COUNTS)) * X_COUNTS - X_COUNTS) + 5
     y_uncertainty = y_conc * 0.15
 
@@ -56,7 +63,10 @@ def main() -> None:
     print(f"Saved synthetic calibration standards to {STANDARDS_CSV}")
     print(standards.to_string(index=False))
 
-    plt.plot(X_COUNTS, X_COUNTS * (1 / 125) + 10, linestyle="none", marker=".", label="ideal")
+    plt.plot(
+        X_COUNTS, (X_COUNTS * (1 / 125) + 10) * CONCENTRATION_SCALE,
+        linestyle="none", marker=".", label="ideal",
+    )
     plt.errorbar(
         standards["x_counts"], standards["y_conc"],
         standards["y_uncertainty"], standards["x_uncertainty"],

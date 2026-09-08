@@ -1,4 +1,4 @@
-.PHONY: help install sync test test-cov test-install test-all-versions lint type-check format clean build release-check prepare-release release publish publish-test docs regen-examples
+.PHONY: help install sync test test-cov test-install test-all-versions lint type-check format clean build release-check prepare-release publish publish-test docs regen-examples
 
 help:
 	@echo "ODR Bootstrap Package Management"
@@ -11,7 +11,7 @@ help:
 	@echo "  make test           Run tests"
 	@echo "  make test-cov       Run tests with coverage report"
 	@echo "  make test-install   Run end-to-end uv installation tests (builds package, installs into fresh venvs)"
-	@echo "  make test-all-versions  Run lint/type-check/tests/install-tests across all supported Python versions (3.11-3.13)"
+	@echo "  make test-all-versions  Run lint/type-check/tests/install-tests across all supported Python versions (3.11-3.14)"
 	@echo "  make lint           Check code style with ruff"
 	@echo "  make type-check     Check types with mypy"
 	@echo "  make format         Format code with ruff (in-place)"
@@ -23,7 +23,7 @@ help:
 	@echo "                      (fits the fixed dataset in examples/data/; to draw a new"
 	@echo "                      synthetic dataset, run examples/Synthetic_Data_Generation.py"
 	@echo "                      manually — it is not part of this target)"
-	@echo "  make release-check  Run full validation before a release"
+	@echo "  make release-check  Run full validation before a release (alias for prepare-release)"
 	@echo "  make prepare-release  Rebuild examples/docs/images, run tests, and build dist before pushing"
 	@echo "  make prepare-release BUMP=patch   Same, plus bump version (patch|minor|major) and uv.lock"
 	@echo "  make publish-test   Publish to TestPyPI"
@@ -78,26 +78,30 @@ docs: regen-examples
 	uv run --extra docs sphinx-build -b html docs/source docs/build/html
 	@echo "Documentation built: docs/build/html/index.html"
 
-release-check: clean
-	uv sync --all-extras
-	uv run pytest
-	uv run pytest -m install tests/test_installation.py --no-cov
-	uv run ruff check .
-	uv run mypy odr_bootstrap
-	$(MAKE) regen-examples
-	uv run --extra docs sphinx-build -b html docs/source docs/build/html
-	uv build
-	@echo "Release validation complete."
+release-check:
+	./scripts/prepare-release.sh
 
 prepare-release:
 	./scripts/prepare-release.sh $(if $(BUMP),--bump $(BUMP),)$(if $(SET_VERSION), --set-version $(SET_VERSION),)
 
 publish-test: release-check
 	@echo "Publishing to TestPyPI..."
-	uv publish --publish-url https://test.pypi.org/legacy/
+	@token="$$(security find-generic-password -a "$$USER" -s testpypi-api-token -w 2>/dev/null)"; \
+	if [ -z "$$token" ]; then \
+		echo "error: no TestPyPI token found in the macOS Keychain. Set one with:"; \
+		echo "  security add-generic-password -a \"$$USER\" -s testpypi-api-token -w"; \
+		exit 1; \
+	fi; \
+	UV_PUBLISH_TOKEN="$$token" uv publish --publish-url https://test.pypi.org/legacy/
 
 publish: release-check
 	@echo "Publishing to PyPI..."
-	uv publish
+	@token="$$(security find-generic-password -a "$$USER" -s pypi-api-token -w 2>/dev/null)"; \
+	if [ -z "$$token" ]; then \
+		echo "error: no PyPI token found in the macOS Keychain. Set one with:"; \
+		echo "  security add-generic-password -a \"$$USER\" -s pypi-api-token -w"; \
+		exit 1; \
+	fi; \
+	UV_PUBLISH_TOKEN="$$token" uv publish
 
 .DEFAULT_GOAL := help

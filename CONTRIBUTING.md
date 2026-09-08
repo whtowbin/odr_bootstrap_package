@@ -52,7 +52,7 @@ uv run pytest -m install tests/test_installation.py --no-cov
 ```
 
 To test installation and the full test/lint/type-check suite across every
-Python version the package supports (3.11, 3.12, 3.13), use:
+Python version the package supports (3.11, 3.12, 3.13, 3.14), use:
 
 ```bash
 make test-all-versions
@@ -239,6 +239,26 @@ make prepare-release
 
 Review the `git status` output (regenerated PNGs and any doc/code changes)
 before committing and pushing.
+
+### Publishing locally
+
+CI (`.github/workflows/publish.yml`) publishes to PyPI automatically on a
+GitHub Release via [Trusted Publishing](https://docs.pypi.org/trusted-publishers/)
+(OIDC) — no stored token needed there. `make publish` / `make publish-test`
+are for publishing manually from your own machine, and need a PyPI/TestPyPI
+API token. Store it in the macOS Keychain (never in a file, shell rc, or
+`.pypirc`) — one-time setup, run this yourself in your own terminal:
+
+```bash
+security add-generic-password -a "$USER" -s pypi-api-token -w
+# and, if you also publish to TestPyPI:
+security add-generic-password -a "$USER" -s testpypi-api-token -w
+```
+
+Each command prompts you to enter the token value directly at the terminal;
+it's stored encrypted in your Keychain, not written to any file in the repo.
+`make publish` / `make publish-test` read it back at run-time into
+`UV_PUBLISH_TOKEN` for that one `uv publish` invocation only.
 
 ## Documentation
 

@@ -37,16 +37,21 @@ Full documentation at [Read the Docs](https://odr-bootstrap-package.readthedocs.
 
 ## Quick Start
 
+The code below mirrors `examples/example.py` — the values are the same
+synthetic calibration standards that script fits (checked in at
+`examples/data/synthetic_calibration_standards.csv`), just written as inline
+arrays here so you can copy, paste, and run this without cloning the repo.
+
 ```python
 import numpy as np
 import matplotlib.pyplot as plt
 from odr_bootstrap import odr_bootstrap, fit_defaults, plot_regression
 
 # Calibration standards: x = measured count rate, y = known concentration
-x_counts      = np.array([   117,  223,   528, 640,  1014,  2071])   # count rate
-y_conc        = np.array([  46.0,  54.5,   73.8, 84.8, 169.9,  216.1])   # ppm
-x_uncertainty = np.array([   22,   35,    77,  48,   109,    241])     # counting sigma
-y_uncertainty = y_conc * 0.15  + 5                                         # 2 % of concentration
+x_counts      = np.array([62,    117,   223,   528,   1014,  2001])   # count rate
+y_conc        = np.array([210.0, 228.6, 226.0, 246.4, 337.6, 442.8])  # ppm
+x_uncertainty = np.array([5.4,   20.7,  16.0,  37.8,  54.7,  76.4])   # counting sigma
+y_uncertainty = np.array([31.5,  34.3,  33.9,  37.0,  50.6,  66.4])   # ppm
 
 # Derive starting parameters automatically
 defaults = fit_defaults(x_counts, y_conc)
@@ -58,7 +63,9 @@ confidence_data, best_fit_params, points, all_params, _ = odr_bootstrap(
     x_err=x_uncertainty,
     y_err=y_uncertainty,
     resample_draws=2000,
+    fit_intercept=True,
     initial_guess=defaults["initial_guess"],
+    confidence_level=0.95,
     line_max=defaults["line_max"],
     line_interval=defaults["line_interval"],
 )
@@ -77,39 +84,50 @@ plt.savefig("calibration_curve.png", dpi=150)
 plt.show()
 ```
 
-### Applying the calibration to new measurements
+### Handling potential outliers, then applying the calibration
 
-Once the calibration is fitted, `apply_calibration` applies it to new data
-and propagates the full bootstrap uncertainty into confidence intervals.
-
-**Calibration axis convention:** place the measured count rate on the x-axis
-and the known concentration on the y-axis. Then `apply_calibration(variable="x")`
-converts an unknown count rate directly into a concentration — no inversion required.
+`examples/example.py` retains two additional standards that fall well off
+the fitted trend rather than discarding them — there's no independent
+evidence they're bad measurements, so the bootstrap is used to quantify how
+much they actually affect the fit (see [Fit with synthetic outliers](#fit-with-synthetic-outliers)
+below):
 
 ```python
-import numpy as np
-from odr_bootstrap import odr_bootstrap, fit_defaults, apply_calibration
+# Two additional standards that fall well off the fitted trend, retained
+# because there's no independent evidence they're bad measurements.
+x_outlier = np.concatenate([x_counts, [750.0, 1600.0]])
+y_outlier = np.concatenate([y_conc, [380.0, 300.0]])
+x_outlier_err = np.concatenate([x_uncertainty, [45.0, 65.0]])
+y_outlier_err = np.concatenate([y_uncertainty, [380.0 * 0.15, 300.0 * 0.15]])
 
-# Calibration standards: x = count rate, y = concentration (ppm)
-x_counts      = np.array([62,   117,  223,   528,   1014,  2001])
-y_conc        = np.array([0.5,  1.0,  2.0,   5.0,   10.0,  20.0])
-x_uncertainty = np.array([15,   20,   25,    40,     60,    80])
-y_uncertainty = y_conc * 0.02
-
-defaults = fit_defaults(x_counts, y_conc, fit_intercept=True)
-confidence_data, best_fit_params, points, all_params, _ = odr_bootstrap(
-    x=x_counts, y=y_conc, x_err=x_uncertainty, y_err=y_uncertainty,
+outlier_defaults = fit_defaults(x_outlier, y_outlier, fit_intercept=True)
+_, _, _, outlier_params, _ = odr_bootstrap(
+    x=x_outlier, y=y_outlier, x_err=x_outlier_err, y_err=y_outlier_err,
     resample_draws=2000, fit_intercept=True,
-    initial_guess=defaults["initial_guess"],
-    line_max=defaults["line_max"],
-    line_interval=defaults["line_interval"],
+    initial_guess=outlier_defaults["initial_guess"],
+    line_max=outlier_defaults["line_max"],
+    line_interval=outlier_defaults["line_interval"],
 )
+```
+
+Once a calibration is fitted, `apply_calibration` applies it to new data and
+propagates the full bootstrap uncertainty into confidence intervals.
+
+**Calibration axis convention:** the measured count rate is on the x-axis
+and the known concentration is on the y-axis, so `apply_calibration(variable="x")`
+converts an unknown count rate directly into a concentration — no inversion
+required. `outlier_params` (not the clean-fit `all_params`) is used
+deliberately, so the reported uncertainty reflects the retained potential
+outliers:
+
+```python
+from odr_bootstrap import apply_calibration
 
 # Convert unknown count rates → concentration (ppm)
-unknown_counts = np.array([150.0, 430.0, 850.0, 1600.0])
+unknown_counts = np.array([150.0, 400.0, 850.0, 1600.0])
 results = apply_calibration(
     unknown_counts,
-    all_params,
+    outlier_params,
     variable="x",
     fit_intercept=True,
     confidence_levels=(0.68, 0.95),
@@ -119,10 +137,10 @@ print(results.to_string(float_format="{:.3f}".format, index=False))
 
 ```
  input_value  best_fit  median  neg_ci_68  pos_ci_68  neg_ci_95  pos_ci_95
-     150.000     1.340   1.337      1.289      1.359      1.232      1.376
-     430.000     4.137   4.126      4.078      4.158      3.994      4.180
-     850.000     8.333   8.328      8.241      8.368      8.039      8.397
-    1600.000    15.825  15.838     15.642     15.912     15.230     15.941
+     150.000   226.675 225.902    219.969    234.674    214.702    250.943
+     400.000   249.887 250.701    242.994    261.238    237.006    275.972
+     850.000   291.669 294.298    277.898    315.570    265.765    339.770
+    1600.000   361.306 364.851    332.280    410.624    307.554    457.742
 ```
 
 The returned DataFrame has one row per input with columns `input_value`,
@@ -142,17 +160,23 @@ page for the rendered output table.
 from odr_bootstrap import gaussian_aggregate, plot_density
 
 all_params_array = np.asarray(all_params, dtype=float)
-slopes     = all_params_array[:, 0]
-intercepts = all_params_array[:, 1]
+all_slopes = all_params_array[:, 0]
+all_intercepts = all_params_array[:, 1]
 
-slope_dist,     slope_stats     = gaussian_aggregate(slopes,     np.full_like(slopes,     slopes.std()))
-intercept_dist, intercept_stats = gaussian_aggregate(intercepts, np.full_like(intercepts, intercepts.std()))
+slope_dist, slope_stats = gaussian_aggregate(
+    all_slopes, np.full_like(all_slopes, all_slopes.std())
+)
+intercept_dist, intercept_stats = gaussian_aggregate(
+    all_intercepts, np.full_like(all_intercepts, all_intercepts.std())
+)
 
 fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-plot_density(slope_dist,     slope_stats,     ax=axes[0])
+plot_density(slope_dist, slope_stats, ax=axes[0])
 plot_density(intercept_dist, intercept_stats, ax=axes[1])
-axes[0].set_title("Slope Distribution")
-axes[1].set_title("Intercept Distribution")
+axes[0].set_xlabel("Calibration Slope")
+axes[0].set_ylabel("Probability")
+axes[1].set_xlabel("Calibration Y-Intercept")
+axes[1].set_ylabel("Probability")
 plt.tight_layout()
 plt.savefig("calibration_estimates.png", dpi=150)
 plt.show()
@@ -160,21 +184,19 @@ plt.show()
 
 ## Example Output
 
-The first two figures below are generated directly from the Quick Start and "Visualising parameter uncertainty" code above, so they always match what that code actually produces.
-
-The outlier figures come from `examples/example.py`, a more complete worked example that fits a fixed set of synthetic calibration standards checked into the repo at `examples/data/synthetic_calibration_standards.csv` (generated by `examples/Synthetic_Data_Generation.py` — see that script if you want to draw a new synthetic dataset; it's run manually and is not part of the regular build). Run `python examples/example.py` to reproduce these, plus a results table: the clean calibration fit is repeated with two retained potential outliers so you can see how they affect the result; the calibration is then applied — using the outlier-affected fit — to convert unknown count rates into concentration estimates (ppm).
+Running `python examples/example.py` produces four figures and a results table. The script fits a fixed set of synthetic calibration standards checked into the repo at `examples/data/synthetic_calibration_standards.csv` (generated by `examples/Synthetic_Data_Generation.py` — see that script if you want to draw a new synthetic dataset; it's run manually and is not part of the regular build). The first two figures show the clean calibration fit; the second two repeat the analysis with two retained potential outliers so you can see how they affect the result; the calibration is then applied — using the outlier-affected fit — to convert unknown count rates into concentration estimates (ppm).
 
 ### Clean calibration fit
 
-![Calibration curve with 68% and 95% bootstrap confidence intervals](https://raw.githubusercontent.com/whtowbin/odr_bootstrap_package/main/readme_calibration_curve.png)
+![Calibration curve with 68% and 95% bootstrap confidence intervals](https://raw.githubusercontent.com/whtowbin/odr_bootstrap_package/main/calibration_curve.png)
 
-The shaded bands are the 68% (inner) and 95% (outer) bootstrap confidence intervals. Narrower bands indicate a more precisely constrained calibration. This figure is generated directly from the Quick Start code above.
+The shaded bands are the 68% (inner) and 95% (outer) bootstrap confidence intervals. Narrower bands indicate a more precisely constrained calibration.
 
 ### Bootstrap parameter distributions
 
-![Bootstrap slope and intercept distributions](https://raw.githubusercontent.com/whtowbin/odr_bootstrap_package/main/readme_calibration_estimates.png)
+![Bootstrap slope and intercept distributions](https://raw.githubusercontent.com/whtowbin/odr_bootstrap_package/main/calibration_estimates.png)
 
-Each histogram shows how the fitted slope and intercept vary across bootstrap resamples, giving you a direct view of parameter uncertainty. This figure is generated directly from the "Visualising parameter uncertainty" code above.
+Each histogram shows how the fitted slope and intercept vary across bootstrap resamples, giving you a direct view of parameter uncertainty.
 
 ### Fit with synthetic outliers
 

@@ -153,9 +153,9 @@ def main() -> None:
     # intentionally retained (not discarded) because there is no independent
     # evidence they are bad measurements — see "Handling Potential Outliers".
     x_outlier = np.concatenate([X_COUNTS, [750.0, 1600.0]])
-    y_outlier = np.concatenate([Y_CONC, [19.0, 15.0]])
+    y_outlier = np.concatenate([Y_CONC, [380.0, 300.0]])
     x_outlier_err = np.concatenate([X_UNCERTAINTY, [45.0, 65.0]])
-    y_outlier_err = np.concatenate([Y_UNCERTAINTY, [19.0 * 0.15, 15.0 * 0.15]])
+    y_outlier_err = np.concatenate([Y_UNCERTAINTY, [380.0 * 0.15, 300.0 * 0.15]])
 
     outlier_defaults = fit_defaults(x_outlier, y_outlier, fit_intercept=True)
     outlier_line_max = outlier_defaults["line_max"] * 1.2

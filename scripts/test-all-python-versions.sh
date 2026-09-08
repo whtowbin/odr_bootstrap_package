@@ -17,7 +17,7 @@ cd "$REPO_ROOT"
 
 # Supported versions, kept in sync with pyproject.toml's classifiers /
 # requires-python and the CI matrix in .github/workflows/tests.yml.
-DEFAULT_VERSIONS=("3.11" "3.12" "3.13")
+DEFAULT_VERSIONS=("3.11" "3.12" "3.13" "3.14")
 
 if [ "$#" -gt 0 ]; then
     VERSIONS=("$@")

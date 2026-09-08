@@ -49,6 +49,15 @@ make prepare-release BUMP=patch                    # same, via Makefile
 Review the `git status` output (regenerated PNGs, version bump, docs, dist)
 before committing, tagging, and pushing/publishing.
 
+`make release-check`, `make publish`, and `make publish-test` all run this
+same script (`release-check` is a plain alias for it) — there is no separate,
+duplicated pipeline in the Makefile. `make publish`/`make publish-test` then
+run `uv publish` locally, reading a PyPI/TestPyPI API token from the macOS
+Keychain into `UV_PUBLISH_TOKEN` (see CONTRIBUTING.md's "Publishing locally"
+section for one-time setup) — never store that token in a file, shell rc, or
+`.pypirc`. CI's own publish (`.github/workflows/publish.yml`, triggered by a
+GitHub Release) needs no token at all: it uses PyPI Trusted Publishing (OIDC).
+
 **Keep this file and `scripts/prepare-release.sh` in sync** — if the release
 process changes (new checks, new artifacts to regenerate, a different
 versioning scheme, etc.), update the script and this note together.
